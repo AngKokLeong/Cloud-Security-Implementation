@@ -74,6 +74,7 @@ Resources:
     Properties:
       CidrBlock: !Ref SubnetOneNetworkAddress
       AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
       VpcId: !Ref ProductionVPC
 
   ##################
@@ -86,6 +87,7 @@ Resources:
     Properties:
       CidrBlock: !Ref SubnetTwoNetworkAddress
       AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      MapPublicIpOnLaunch: false
       VpcId: !Ref ProductionVPC
 
 
@@ -114,18 +116,63 @@ Resources:
       AvailabilityZone: !Select [ 1, !GetAZs '' ]
       VpcId: !Ref ProductionVPC
 
+############################################################################
+##  SUBNET ONE ROUTING TABLE CONFIGURATION
+############################################################################
 
-  ProductionVPCRoutingTable:
+  SubnetOneRoutingTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Public Subnet Routing Table"
 
+
+  SubnetOneRoutingTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: 
+        Ref: SubnetOneRoutingTable
+      SubnetId:
+        Ref: ProductionVPCSubnetOne
+
+
+
+
+
+
+############################################################################
+##  SUBNET TWO ROUTING TABLE CONFIGURATION
+############################################################################
+
+  SubnetTwoRoutingTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Private Subnet Routing Table"
+
+
+  SubnetTwoRoutingTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: 
+        Ref: SubnetTwoRoutingTable
+      SubnetId: 
+        Ref: ProductionVPCSubnetTwo
 
   #RouteOne:
   # Type: AWS::EC2::Route
   # Properties:
   #   RouteTableId: !Ref ProductionVPCRoutingTable
   #   GatewayId: !
+
+
+############################################################################
+##  SUBNET ONE ACCESS CONTROL LIST CONFIGURATION
+############################################################################
 
 
   ##################
@@ -136,18 +183,26 @@ Resources:
   SubnetOneACL:
     Type: AWS::EC2::NetworkAcl
     Properties: 
-      VpcId: !Ref ProductionVPC
-
-
+      VpcId: 
+        Ref: ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Subnet One ACL"
 
   ##################
-  # Subnet 2 ACL
+  # Subnet 1 ACL Association
   # Layer Type: Network Layer 
-  # Description:
+  # Description: Associate ACL to Subnet One
   ##################
+  SubnetOneACLAssociation:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: 
+        Ref: SubnetOneACL
+      SubnetId: 
+        Ref: ProductionVPCSubnetOne
 
-
-
+  
   SubnetOneACLEntryOne:
     Type: AWS::EC2::NetworkAclEntry
     Properties:
@@ -155,7 +210,7 @@ Resources:
         Ref: SubnetOneACL
       RuleNumber: 100
       RuleAction: allow
-
+      Protocol: 6
       CidrBlock: 172.16.0.0/24
       PortRange:
         From: 22
@@ -171,8 +226,49 @@ Resources:
       Egress: true
       RuleAction: allow
       CidrBlock: 0.0.0.0/0
-      
 
+############################################################################
+##  SUBNET TWO ACCESS CONTROL LIST CONFIGURATION
+############################################################################
+
+  ##################
+  # Subnet 2 ACL
+  # Layer Type: Network Layer 
+  # Description:
+  ##################
+  SubnetTwoACL:
+    Type: AWS::EC2::NetworkAcl
+    Properties: 
+      VpcId: 
+        Ref: ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Subnet Two ACL"
+
+
+  ##################
+  # Subnet 2 ACL Association
+  # Layer Type: Network Layer 
+  # Description: Associate ACL to Subnet One
+  ##################
+  SubnetTwoACLAssociation:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: 
+        Ref: SubnetTwoACL
+      SubnetId: 
+        Ref: ProductionVPCSubnetTwo
+
+############################################################################
+##  INTERNET GATEWAY
+############################################################################     
+    
+  ProductionVPCInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties: 
+      Tags:
+        - Key: "Name"
+          Value: "Production VPC Internet Gateway"
 
 
 
@@ -183,13 +279,13 @@ Resources:
 
   ##################
   # Web Server One Security Group
-  # Layer Type: Network Layer 
+  # Layer Type: Security Layer 
   # Description:
   ##################
-  InstanceSecurityGroup:
+  WebServerOneSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow http to client host
+      GroupDescription: Allow Internet users to access HTTP (Port 80)
       VpcId: 
         Ref: ProductionVPC
       SecurityGroupIngress:
@@ -202,33 +298,174 @@ Resources:
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: "Web Server One Security Group"
 
   ##################
   # Web Server Two Security Group
-  # Layer Type: Network Layer 
+  # Layer Type: Security Layer 
   # Description:
   ##################
 
-  WebServerSecurityGroup:
+  WebServerTwoSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow http to client host
+      GroupDescription: Allow Internet Users to access SSH (Port 22)
       VpcId: 
         Ref: ProductionVPC
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
+          FromPort: 22
+          ToPort: 22
           CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
         - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
+          FromPort: 22
+          ToPort: 22
           CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: "Web Server Two Security Group"
+
+
+  ##################
+  # MySQL DB Security Group
+  # Layer Type: Security Layer 
+  # Description:
+  ##################
+
+  MySQLDBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow only Web Server 1 and Web Server 2 to access database port 3306
+      VpcId: 
+        Ref: ProductionVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 
+            Fn::GetAtt: [ProductionVPCSubnetOne, CidrBlock]
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 
+            Fn::GetAtt: [ProductionVPCSubnetTwo, CidrBlock]
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 
+            Fn::GetAtt: [ProductionVPCSubnetOne, CidrBlock]
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 
+            Fn::GetAtt: [ProductionVPCSubnetTwo, CidrBlock]
+      Tags:
+        - Key: Name
+          Value: "MySQL DB Security Group"
+
+
+############################################################################
+## KEY PAIR (SECURITY LAYER)
+############################################################################
+
+  WebServerOneKeyPair:
+    Type: 'AWS::EC2::KeyPair'
+    Properties:
+      KeyName: WebServerOneKeyPair
+
+  WebServerTwoKeyPair:
+    Type: 'AWS::EC2::KeyPair'
+    Properties:
+      KeyName: WebServerTwoKeyPair
+
+
 
 ############################################################################
 # COMPUTE LAYER 
 ############################################################################
 
+
+# Refer to https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-instance-launchtemplatespecification.html
+
+  #WebServerLaunchTemplate:
+  #  Type: AWS::EC2::LaunchTemplate
+  #  Properties:
+  #    LaunchTemplateData: #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-launchtemplate-launchtemplatedata.html
+  #    LaunchTemplateName: String
+  #    TagSpecifications: #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-launchtemplate-launchtemplatetagspecification.html
+  #    VersionDescription: String
+
+
+# Refer https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-instance-launchtemplatespecification.html
+  # WebServerLaunchTemplateSpecification:
+    #   LaunchTemplateId: String
+    #  LaunchTemplateName: String
+    #  Version: String
+
+
   
-  #AWS::EC2::Instance
+  ##################
+  # Web Server One EC2
+  # Layer Type: Compute Layer 
+  # Description:
+  ##################     
+  #WebServerOne:
+  #  Type: AWS::EC2::Instance
+    #Properties:
+    #  InstanceType: t2.micro
+    #  LaunchTemplate: 
+        #Ref: WebServerLaunchTemplateSpecification
+    # ImageId: 
+      # Ref: LatestAL2023AmiId
+    # KeyName:
+      # Ref: WebServerOneKeyPair
+    # SecurityGroupIds: 
+      #Ref: WebServerOneSecurityGroup
+    # SubnetId: 
+      # Ref: ProductionVPCSubnetOne
+    # Tags:
+      # - Key: "Name"
+          #Value: Web Server One
+
+
+
+  ##################
+  # Web Server Two EC2
+  # Layer Type: Compute Layer 
+  # Description:
+  ##################
+
+  #WebServerTwo:
+  #  Type: AWS::EC2::Instance
+    #Properties:
+    #  InstanceType: t2.micro
+    #  LaunchTemplate:
+      # Ref: WebServerLaunchTemplateSpecification
+    # ImageId: 
+      # Ref: LatestAL2023AmiId
+    # KeyName:
+      # Ref: WebServerTwoKeyPair
+    # SecurityGroupIds: 
+      #Ref: WebServerTwoSecurityGroup
+    # SubnetId: 
+      # Ref: ProductionVPCSubnetTwo
+    # Tags:
+      # - Key: "Name"
+          #Value: Web Server Two
+
+
+
+############################################################################
+# DATABASE LAYER 
+############################################################################
+
+  ##################
+  # MYSQL Database
+  # Layer Type: Database Layer 
+  # Description:
+  ##################
+
