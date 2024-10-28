@@ -117,7 +117,7 @@ Resources:
       VpcId: !Ref ProductionVPC
 
 ############################################################################
-##  SUBNET ONE ROUTING TABLE CONFIGURATION
+##  PRODUCTION VPC ROUTING TABLE CONFIGURATION
 ############################################################################
 
   SubnetOneRoutingTable:
@@ -126,7 +126,7 @@ Resources:
       VpcId: !Ref ProductionVPC
       Tags:
         - Key: Name
-          Value: "Public Subnet Routing Table"
+          Value: "Production VPC Routing Table"
 
 
   SubnetOneRoutingTableAssociation:
@@ -137,13 +137,23 @@ Resources:
       SubnetId:
         Ref: ProductionVPCSubnetOne
 
+  SubnetTwoRoutingTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: 
+        Ref: SubnetOneRoutingTable
+      SubnetId: 
+        Ref: ProductionVPCSubnetTwo
 
-
-
+  #RouteOne:
+  # Type: AWS::EC2::Route
+  # Properties:
+  #   RouteTableId: !Ref ProductionVPCRoutingTable
+  #   GatewayId: !
 
 
 ############################################################################
-##  SUBNET TWO ROUTING TABLE CONFIGURATION
+##  BACKUP SUBNET ROUTING TABLE CONFIGURATION
 ############################################################################
 
   SubnetTwoRoutingTable:
@@ -153,21 +163,6 @@ Resources:
       Tags:
         - Key: Name
           Value: "Private Subnet Routing Table"
-
-
-  SubnetTwoRoutingTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: 
-        Ref: SubnetTwoRoutingTable
-      SubnetId: 
-        Ref: ProductionVPCSubnetTwo
-
-  #RouteOne:
-  # Type: AWS::EC2::Route
-  # Properties:
-  #   RouteTableId: !Ref ProductionVPCRoutingTable
-  #   GatewayId: !
 
 
 ############################################################################
