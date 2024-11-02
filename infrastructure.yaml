@@ -12,6 +12,12 @@ Parameters:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64'
 
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    Description: EC2 instance type
+
+
   VPCNetworkAddress:
     Type: String
     Description: asd
@@ -222,6 +228,22 @@ Resources:
       RuleAction: allow
       CidrBlock: 0.0.0.0/0
 
+  
+  SubnetOneACLEntryThree:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Ref: SubnetOneACL
+      RuleNumber: 101
+      Protocol: 6
+      Egress: true
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 80
+        To: 80
+
+
 ############################################################################
 ##  SUBNET TWO ACCESS CONTROL LIST CONFIGURATION
 ############################################################################
@@ -239,6 +261,38 @@ Resources:
       Tags:
         - Key: Name
           Value: "Subnet Two ACL"
+
+
+  SubnetTwoACLEntryOneInbound:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Ref: SubnetOneACL
+      RuleNumber: 102
+      RuleAction: allow
+      Egress: false
+      Protocol: 6
+      CidrBlock: 
+        Fn::GetAtt: ['ProductionVPCSubnetOne', 'CidrBlock']
+      PortRange:
+        From: 3306
+        To: 3306
+
+
+  SubnetTwoACLEntryOneOutbound:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Ref: SubnetOneACL
+      RuleNumber: 102
+      RuleAction: allow
+      Egress: true
+      Protocol: 6
+      CidrBlock: 
+        Fn::GetAtt: ['ProductionVPCSubnetOne', 'CidrBlock']
+      PortRange:
+        From: 3306
+        To: 3306
 
 
   ##################
@@ -266,6 +320,13 @@ Resources:
           Value: "Production VPC Internet Gateway"
 
 
+  AttachInternetGatewayToVPC:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+        InternetGatewayId: 
+          Ref: ProductionVPCInternetGateway
+        VpcId: 
+          Ref: ProductionVPC
 
 ############################################################################
 # SECURITY LAYER 
@@ -394,13 +455,63 @@ Resources:
   #    TagSpecifications: #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-launchtemplate-launchtemplatetagspecification.html
   #    VersionDescription: String
 
+  WebServerTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Metadata: #https://stackoverflow.com/questions/54691327/cfn-init-for-cloudformation-launchtemplate
+        AWS::CloudFormation::Init:
+          configSets:
+            default:
+              - install_and_configure
+          install_and_configure:
+            packages:
+              yum:
+                httpd: []
+                telnet: []
+            files:
+              "/var/www/html/index.html":
+                content: |
+                  <!DOCTYPE html>
+                  <html>
+                  <head>
+                    <title>EC2 Instance Info</title>
+                  </head>
+                  <body>
+                    <h1>Hello From Your <span id="instance-name"></h1>
+                    <script>
+                      fetch('http://169.254.169.254/latest/meta-data/tags/instance/Name')
+                        .then(response => response.text())
+                        .then(data => {
+                          document.getElementById('instance-name').textContent = data;
+                        })
+                        .catch(error => {
+                          console.error('Error:', error);
+                          document.getElementById('instance-name').textContent = 'Unable to retrieve instance name';
+                        });
+                    </script>
+                  </body>
+                  </html>
+                mode: "000644"
+                owner: "apache"
+                group: "apache"
+            services:
+              sysvinit:
+                httpd:
+                  enabled: "true"
+                  ensureRunning: "true"
 
-# Refer https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-instance-launchtemplatespecification.html
-  # WebServerLaunchTemplateSpecification:
-    #   LaunchTemplateId: String
-    #  LaunchTemplateName: String
-    #  Version: String
-
+    Properties:
+      LaunchTemplateName: WebServerTemplate
+      LaunchTemplateData:
+        ImageId: ami-0cff7528ff583bf9a  # Amazon Linux 2 AMI (HVM) - Kernel 5.10, SSD Volume Type
+        InstanceType: !Ref InstanceType
+        UserData: 
+          Fn::Base64:
+            !Sub |
+              #!/bin/bash -xe
+              yum update -y aws-cfn-bootstrap
+              /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource WebServerTemplate --region ${AWS::Region}
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource WebServerTemplate --region ${AWS::Region}
+      
 
   
   ##################
@@ -408,23 +519,25 @@ Resources:
   # Layer Type: Compute Layer 
   # Description:
   ##################     
-  #WebServerOne:
-  #  Type: AWS::EC2::Instance
-    #Properties:
-    #  InstanceType: t2.micro
-    #  LaunchTemplate: 
-        #Ref: WebServerLaunchTemplateSpecification
-    # ImageId: 
-      # Ref: LatestAL2023AmiId
-    # KeyName:
-      # Ref: WebServerOneKeyPair
-    # SecurityGroupIds: 
-      #Ref: WebServerOneSecurityGroup
-    # SubnetId: 
-      # Ref: ProductionVPCSubnetOne
-    # Tags:
-      # - Key: "Name"
-          #Value: Web Server One
+  WebServerOne:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      LaunchTemplate: 
+        LaunchTemplateId: 
+          Ref: WebServerTemplate
+        LaunchTemplateName: 
+          Fn::GetAtt
+        Version: String
+      KeyName:
+        Ref: WebServerOneKeyPair
+      SecurityGroupIds: 
+        - Ref: WebServerOneSecurityGroup
+      SubnetId: 
+        Ref: ProductionVPCSubnetOne
+      Tags:
+       - Key: "Name"
+         Value: Web Server 1
 
 
 
@@ -450,7 +563,7 @@ Resources:
       # Ref: ProductionVPCSubnetTwo
     # Tags:
       # - Key: "Name"
-          #Value: Web Server Two
+          #Value: Web Server 2
 
 
 
@@ -463,4 +576,5 @@ Resources:
   # Layer Type: Database Layer 
   # Description:
   ##################
+
 
