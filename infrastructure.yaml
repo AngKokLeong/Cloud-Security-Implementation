@@ -195,7 +195,7 @@ Resources:
     Type: AWS::EC2::Route
     Properties:
       RouteTableId:
-        Fn::GetAtt: ['SubnetOneRoutingTable', 'RouteTableId']
+        Ref: SubnetOneRoutingTable
       GatewayId: 
         Ref: ProductionVPCInternetGateway
       DestinationCidrBlock: '0.0.0.0/0'
@@ -231,6 +231,133 @@ Resources:
 
 
 ############################################################################
+##  SUBNET ONE ACCESS CONTROL LIST CONFIGURATION
+############################################################################
+
+#Network ACL will act as a network trap for cloud monitoring to obtain data from
+
+  ##################
+  # Subnet 1 ACL
+  # Layer Type: Network Layer 
+  # Description:
+  ##################
+  SubnetOneACL:
+    Type: AWS::EC2::NetworkAcl
+    Properties: 
+      VpcId: 
+        Ref: ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Subnet One ACL"
+
+  ##################
+  # Subnet 1 ACL Association
+  # Layer Type: Network Layer 
+  # Description: Associate ACL to Subnet One
+  ##################
+  SubnetOneACLAssociation:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: 
+        Ref: SubnetOneACL
+      SubnetId: 
+        Ref: ProductionVPCSubnetOne
+      
+  SubnetOneACLEntryOneInbound:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Ref: SubnetOneACL
+      RuleNumber: 100
+      RuleAction: allow
+      Protocol: -1
+      Egress: false
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 1
+        To: 65535
+
+  SubnetOneACLEntryOneOutbound:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Ref: SubnetOneACL
+      RuleNumber: 100
+      RuleAction: allow
+      Protocol: -1
+      Egress: true
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 1
+        To: 65535
+
+
+
+
+############################################################################
+##  SUBNET TWO ACCESS CONTROL LIST CONFIGURATION
+############################################################################
+
+  ##################
+  # Subnet 2 ACL
+  # Layer Type: Network Layer 
+  # Description:
+  ##################
+  SubnetTwoACL:
+    Type: AWS::EC2::NetworkAcl
+    Properties: 
+      VpcId: 
+        Ref: ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Subnet Two ACL"
+
+
+  SubnetTwoACLEntryOneInbound:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Ref: SubnetTwoACL
+      RuleNumber: 100
+      RuleAction: allow
+      Egress: false
+      Protocol: -1
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 1
+        To: 65535
+
+
+  SubnetTwoACLEntryOneOutbound:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Ref: SubnetTwoACL
+      RuleNumber: 100
+      RuleAction: allow
+      Egress: true
+      Protocol: -1
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 1
+        To: 65535
+
+
+  ##################
+  # Subnet 2 ACL Association
+  # Layer Type: Network Layer 
+  # Description: Associate ACL to Subnet One
+  ##################
+  SubnetTwoACLAssociation:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: 
+        Ref: SubnetTwoACL
+      SubnetId: 
+        Ref: ProductionVPCSubnetTwo
+
+
+############################################################################
 # SECURITY LAYER 
 ############################################################################
 
@@ -249,6 +376,10 @@ Resources:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
@@ -279,6 +410,26 @@ Resources:
       IpProtocol: tcp
       FromPort: 22
       ToPort: 22
+      CidrIp: 0.0.0.0/0
+  
+  WebServerTwoSecurityGroupHTTPSIngressRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: 
+        Ref: WebServerTwoSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: 0.0.0.0/0
+  
+  WebServerTwoSecurityGroupHTTPIngressRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: 
+        Ref: WebServerTwoSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
       CidrIp: 0.0.0.0/0
 
   ##################
@@ -342,11 +493,11 @@ Resources:
         configSets:
           default:
             - install_and_configure
+            - install_telnet
         install_and_configure:
           packages:
             yum:
               httpd: []
-              telnet: []
           files:
             "/var/www/html/index.html":
               content: |
@@ -363,6 +514,15 @@ Resources:
               httpd:
                 enabled: "true"
                 ensureRunning: "true"
+        install_telnet:
+          packages:
+            yum:
+              telnet: []
+          services:
+            sysvinit:
+              telnet:
+                enabled: "true"
+                ensureRunning: "true"
     Properties:
       InstanceType: !Ref InstanceType
       ImageId: !Ref LatestAL2023AmiId
@@ -377,9 +537,9 @@ Resources:
         Fn::Base64:
           !Sub |
             #!/bin/bash -xe
-            yum update -y aws-cfn-bootstrap
-            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource WebServerOne --region ${AWS::Region}
-            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource WebServerOne --region ${AWS::Region}
+              yum update -y aws-cfn-bootstrap
+              /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource WebServerOne --region ${AWS::Region}
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource WebServerOne --region ${AWS::Region}
       Tags:
         - Key: Name
           Value: Web Server One
@@ -397,11 +557,11 @@ Resources:
         configSets:
           default:
             - install_and_configure
+            - install_telnet
         install_and_configure:
           packages:
             yum:
               httpd: []
-              telnet: []
           files:
             "/var/www/html/index.html":
               content: |
@@ -418,6 +578,15 @@ Resources:
               httpd:
                 enabled: "true"
                 ensureRunning: "true"
+        install_telnet:
+          packages:
+            yum:
+              telnet: []
+          services:
+            sysvinit:
+              telnet:
+                enabled: "true"
+                ensureRunning: "true"
     Properties:
       InstanceType: !Ref InstanceType
       ImageId: !Ref LatestAL2023AmiId
@@ -432,9 +601,9 @@ Resources:
         Fn::Base64:
           !Sub |
             #!/bin/bash -xe
-            yum update -y aws-cfn-bootstrap
-            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource WebServerTwo --region ${AWS::Region}
-            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource WebServerTwo --region ${AWS::Region}
+              yum update -y aws-cfn-bootstrap
+              /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource WebServerTwo --region ${AWS::Region}
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource WebServerTwo --region ${AWS::Region}
       Tags:
         - Key: Name
           Value: Web Server Two
