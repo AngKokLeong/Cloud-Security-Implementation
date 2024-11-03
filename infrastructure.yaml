@@ -114,6 +114,9 @@ Resources:
       CidrBlock: !Ref BackupSubnetOneNetworkAddress
       AvailabilityZone: !Select [ 1, !GetAZs '' ]
       VpcId: !Ref ProductionVPC
+      Tags: 
+        - Key: Name
+          Value: "Backup Subnet One"
 
   ##################
   # Production Subnet 2 
@@ -126,7 +129,9 @@ Resources:
       CidrBlock: !Ref BackupSubnetTwoNetworkAddress
       AvailabilityZone: !Select [ 1, !GetAZs '' ]
       VpcId: !Ref ProductionVPC
-
+      Tags: 
+        - Key: Name
+          Value: "Backup Subnet Two"
 
 
 ############################################################################
@@ -180,7 +185,7 @@ Resources:
       VpcId: !Ref ProductionVPC
       Tags:
         - Key: Name
-          Value: "Production VPC Routing Table"
+          Value: "Public Subnet Routing Table"
 
   SubnetOneRoutingTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -227,6 +232,29 @@ Resources:
         RouteTableId: !Ref SubnetTwoRoutingTable
         DestinationCidrBlock: '0.0.0.0/0'
         NatGatewayId: !Ref ProductionVPCSubnetTwoNATGateway
+
+
+############################################################################
+##  BACKUP SUBNET ROUTING TABLE CONFIGURATION
+############################################################################
+
+  BackupSubnetRoutingTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Private Subnet Routing Table"
+
+  BackupSubnetRoutingTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: 
+        Ref: BackupSubnetRoutingTable
+      SubnetId: 
+        Ref: BackupSubnetRoutingTable
+
+
 
 
 ############################################################################
@@ -354,6 +382,12 @@ Resources:
         Ref: SubnetTwoACL
       SubnetId: 
         Ref: ProductionVPCSubnetTwo
+
+
+
+
+
+
 
 
 ############################################################################
