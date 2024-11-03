@@ -5,7 +5,7 @@ Parameters:
   VPCIdentifier:
     Type: String
     Description: VPC Identifier
-    Default: '3114394F_VPC'
+    Default: '3114394F'
 
   LatestAL2023AmiId:
     Description: Latest EC2 Amazon Linux 2023 AMI from Systems Manager Parameter Store
@@ -42,7 +42,6 @@ Parameters:
     Type: String
     Description: Network Address for Backup Subnet Two
     Default: 10.0.4.0/24
-
   
 
 Resources:
@@ -412,53 +411,6 @@ Resources:
       ToPort: 22
       CidrIp: 0.0.0.0/0
   
-  WebServerTwoSecurityGroupHTTPSIngressRule:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: 
-        Ref: WebServerTwoSecurityGroup
-      IpProtocol: tcp
-      FromPort: 443
-      ToPort: 443
-      CidrIp: 0.0.0.0/0
-  
-  WebServerTwoSecurityGroupHTTPIngressRule:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: 
-        Ref: WebServerTwoSecurityGroup
-      IpProtocol: tcp
-      FromPort: 80
-      ToPort: 80
-      CidrIp: 0.0.0.0/0
-
-  ##################
-  # MySQL DB Security Group
-  # Layer Type: Security Layer 
-  # Description:
-  ##################
-
-  MySQLDBSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Allow only Web Server 1 and Web Server 2 to access database port 3306
-      VpcId: 
-        Ref: ProductionVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
-          CidrIp: 
-            Fn::GetAtt: [ProductionVPCSubnetOne, CidrBlock]
-        - IpProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
-          CidrIp: 
-            Fn::GetAtt: [ProductionVPCSubnetTwo, CidrBlock]
-      Tags:
-        - Key: Name
-          Value: "MySQL DB Security Group"
-
 
 ############################################################################
 ## KEY PAIR (SECURITY LAYER)
@@ -607,27 +559,3 @@ Resources:
       Tags:
         - Key: Name
           Value: Web Server Two
-
-
-
-
-############################################################################
-# DATABASE LAYER 
-############################################################################
-
-  ##################
-  # MYSQL Database
-  # Layer Type: Database Layer 
-  # Description:
-  ##################
-
-
-  DBSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: "MySQL DB Subnet Group"
-      SubnetIds:
-        - Ref: ProductionVPCSubnetTwo
-        - Ref: ProductionVPCBackupSubnetTwo
-
-#DB should be using subnet 2
