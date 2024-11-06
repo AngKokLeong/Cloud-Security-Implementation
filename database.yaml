@@ -120,6 +120,11 @@ Resources:
         - Key: Name
           Value: "MySQL DB Security Group"
 
+############################################################################
+# DATABASE LAYER 
+############################################################################
+
+
 
   RDSInstanceParameterGroup:
     Type: AWS::RDS::DBParameterGroup
@@ -127,7 +132,7 @@ Resources:
       Family: mysql8.0
       Description: Custom parameter group for MySQL 8.0
       Parameters:
-        max_connections: 500
+        max_connections: 100
         slow_query_log: 1
         long_query_time: 2
 
