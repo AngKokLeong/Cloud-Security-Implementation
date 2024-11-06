@@ -623,37 +623,37 @@ Outputs:
   WebServerOnePublicIP:
     Value: !GetAtt WebServerOne.PublicIp
     Export:
-      Name: "Web Server One Public IP"
+      Name: "Web-Server-One-Public-IP"
 
   WebServerOnePublicDnsName:
     Value: !GetAtt WebServerOne.PublicDnsName
     Export:
-      Name: "Web Server One Public DNS Name"
+      Name: "Web-Server-One-Public-DNS-Name"
 
 
   WebServerOneInstanceId:
     Value: !GetAtt WebServerOne.InstanceId
     Export:
-      Name: "Web Server One EC2 Instance ID"
+      Name: "Web-Server-One-EC2-Instance-ID"
 
   
 
   WebServerOnePrivateIP:
     Value: !GetAtt WebServerOne.PrivateIp
     Export:
-      Name: "Web Server One Private IP"
+      Name: "Web-Server-One-Private-IP"
 
   
   WebServerOnePrivateDNSName:
     Value: !GetAtt WebServerOne.PrivateDnsName
     Export:
-      Name: "Web Server One Private DNS Name"
+      Name: "Web-Server-One-Private-DNS-Name"
 
 
   WebServerOneKeyPairId:
     Value: !GetAtt WebServerOneKeyPair.KeyPairId
     Export:
-      Name: "Web Server One Key Pair ID"
+      Name: "Web-Server-One-Key-Pair-ID"
 
   
 
@@ -661,46 +661,46 @@ Outputs:
   WebServerTwoPublicIP:
     Value: !GetAtt WebServerTwo.PublicIp
     Export:
-      Name: "Web Server Two Public IP"
+      Name: "Web-Server-Two-Public-IP"
 
   WebServerTwoPublicDnsName:
     Value: !GetAtt WebServerTwo.PublicDnsName
     Export:
-      Name: "Web Server Two Public DNS Name"
+      Name: "Web-Server-Two-Public-DNS-Name"
 
 
   WebServerTwoInstanceId:
     Value: !GetAtt WebServerTwo.InstanceId
     Export:
-      Name: "Web Server Two EC2 Instance ID"
+      Name: "Web-Server-Two-EC2-Instance-ID"
 
   
 
   WebServerTwoPrivateIP:
     Value: !GetAtt WebServerTwo.PrivateIp
     Export:
-      Name: "Web Server Two Private IP"
+      Name: "Web-Server-Two-Private-IP"
 
   
   WebServerTwoPrivateDNSName:
     Value: !GetAtt WebServerTwo.PrivateDnsName
     Export:
-      Name: "Web Server Two Private DNS Name"
+      Name: "Web-Server-Two-Private-DNS-Name"
 
   WebServerTwoKeyPairId:
     Value: !GetAtt WebServerTwoKeyPair.KeyPairId
     Export:
-      Name: "Web Server Two Key Pair ID"
+      Name: "Web-Server-Two-Key-Pair-ID"
 
   SubnetOneACLID:
     Value: !GetAtt SubnetOneACL.Id
     Export:
-      Name: "Subnet One ACL ID"
+      Name: "Subnet-One-ACL-ID"
 
   SubnetTwoACLID:
     Value: !GetAtt SubnetTwoACL.Id
     Export:
-      Name: "Subnet Two ACL ID"
+      Name: "Subnet-Two-ACL-ID"
 
 
 
@@ -710,23 +710,23 @@ Outputs:
   ProductionVPCSubnetOneAZ:
       Value: !GetAtt ProductionVPCSubnetOne.AvailabilityZone
       Export:
-        Name: "Production VPC Subnet One Availability Zone"
+        Name: "Production-VPC-Subnet-One-Availability-Zone"
 
   ProductionVPCSubnetOneCidrBlock:
     Value: !GetAtt ProductionVPCSubnetOne.CidrBlock
     Export:
-      Name: "Production VPC Subnet One Network Address"
+      Name: "Production-VPC-Subnet-One-Network-Address"
 
 
   ProductionVPCSubnetOneID:
     Value:  !GetAtt ProductionVPCSubnetOne.SubnetId
     Export:
-      Name: "Production VPC Subnet One ID"
+      Name: "Production-VPC-Subnet-One-ID"
 
   ProductionVPCSubnetOneNetworkAclAssociationId:
     Value: !GetAtt ProductionVPCSubnetOne.NetworkAclAssociationId
     Export:
-      Name: "Production VPC Subnet One Network ACL Association ID"
+      Name: "Production-VPC-Subnet-One-Network-ACL-Association-ID"
 
 
 
@@ -737,65 +737,65 @@ Outputs:
   ProductionVPCSubnetTwoAZ:
     Value: !GetAtt ProductionVPCSubnetTwo.AvailabilityZone
     Export:
-      Name: "Production VPC Subnet Two Availability Zone"
+      Name: "Production-VPC-Subnet-Two-Availability-Zone"
 
   ProductionVPCSubnetTwoCidrBlock:
     Value: !GetAtt ProductionVPCSubnetTwo.CidrBlock
     Export:
-      Name: "Production VPC Subnet Two Network Address"
+      Name: "Production-VPC-Subnet-Two-Network-Address"
 
   ProductionVPCSubnetTwoID:
     Value:  !GetAtt ProductionVPCSubnetTwo.SubnetId
     Export:
-      Name: "Production VPC Subnet Two ID"
+      Name: "Production-VPC-Subnet-Two-ID"
 
   ProductionVPCSubnetTwoNetworkAclAssociationId:
     Value: !GetAtt ProductionVPCSubnetTwo.NetworkAclAssociationId
     Export:
-      Name: "Production VPC Subnet Two Network ACL Association ID"
+      Name: "Production-VPC-Subnet-Two-Network-ACL-Association-ID"
 
 
 
   ProductionVPCBackupPublicSubnetAZ:
     Value: !GetAtt ProductionVPCBackupPublicSubnet.AvailabilityZone
     Export:
-      Name: "Production VPC Backup Public Subnet Availability Zone"
+      Name: "Production-VPC-Backup-Public-Subnet-Availability-Zone"
 
   ProductionVPCBackupPublicSubnetCidrBlock:
     Value: !GetAtt ProductionVPCBackupPublicSubnet.CidrBlock
     Export:
-      Name: "Production VPC Backup Public Subnet Two Network Address"
+      Name: "Production-VPC-Backup-Public-Subnet-Two-Network-Address"
 
   ProductionVPCBackupPublicSubnetID:
     Value: !GetAtt ProductionVPCBackupPublicSubnet.SubnetId
     Export:
-      Name: "Production VPC Backup Public Subnet ID"
+      Name: "Production-VPC-Backup-Public-Subnet-ID"
 
   ProductionVPCBackupPublicSubnetNetworkAclAssociationId:
     Value: !GetAtt ProductionVPCBackupPublicSubnet.NetworkAclAssociationId
     Export:
-      Name: "Production VPC Backup Public Subnet Network ACL Association ID"
+      Name: "Production-VPC-Backup-Public-Subnet-Network-ACL-Association-ID"
 
 
   ProductionVPCBackupPrivateSubnetAZ:
     Value: !GetAtt ProductionVPCBackupPrivateSubnet.AvailabilityZone
     Export:
-      Name: "Production VPC Backup Private Subnet Availability Zone"
+      Name: "Production-VPC-Backup-Private-Subnet-Availability-Zone"
 
   ProductionVPCBackupPrivateSubnetCidrBlock:
     Value: !GetAtt ProductionVPCBackupPrivateSubnet.CidrBlock
     Export:
-      Name: "Production VPC Backup Private Subnet Two Network Address"
+      Name: "Production-VPC-Backup-Private-Subnet-Two-Network-Address"
 
   ProductionVPCBackupPrivateSubnetID:
     Value: !GetAtt ProductionVPCBackupPrivateSubnet.SubnetId
     Export:
-      Name: "Production VPC Backup Private Subnet ID"
+      Name: "Production-VPC-Backup-Private-Subnet-ID"
 
   ProductionVPCBackupPrivateSubnetNetworkAclAssociationId:
     Value: !GetAtt ProductionVPCBackupPrivateSubnet.NetworkAclAssociationId
     Export:
-      Name: "Production VPC Backup Private Subnet Network ACL Association ID"
+      Name: "Production-VPC-Backup-Private-Subnet-Network-ACL-Association-ID"
 
 
 
@@ -803,12 +803,12 @@ Outputs:
   ProductionVPCID:
     Value: !GetAtt ProductionVPC.VpcId
     Export:
-      Name: "Production VPC ID"
+      Name: "Production-VPC-ID"
 
   ProductionVPCCidrBlock:
     Value: !GetAtt ProductionVPC.CidrBlock
     Export:
-      Name: "Production VPC Network Address"
+      Name: "Production-VPC-Network-Address"
 
   ProductionVPCCidrBlockAssociations:
     Value: 
@@ -816,7 +816,7 @@ Outputs:
       - '; '
       - !GetAtt ProductionVPC.CidrBlockAssociations
     Export:
-      Name: "Production VPC CIDR Block Associations"
+      Name: "Production-VPC-CIDR-Block-Associations"
 
 
 
