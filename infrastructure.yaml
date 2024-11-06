@@ -36,12 +36,12 @@ Parameters:
   BackupSubnetOneNetworkAddress:
     Type: String
     Description: Network Address for Backup Subnet One
-    Default: 10.0.3.0/24
+    Default: 10.0.5.0/24
 
   BackupSubnetTwoNetworkAddress:
     Type: String
     Description: Network Address for Backup Subnet Two
-    Default: 10.0.4.0/24
+    Default: 10.0.6.0/24
   
 
 Resources:
@@ -83,7 +83,7 @@ Resources:
       VpcId: !Ref ProductionVPC
       Tags:
         - Key: Name
-          Value: "Subnet One"
+          Value: "Subnet One (Public Subnet)"
 
   ##################
   # Production Subnet 2 
@@ -99,7 +99,7 @@ Resources:
       VpcId: !Ref ProductionVPC
       Tags:
         - Key: Name
-          Value: "Subnet Two"
+          Value: "Subnet Two (Private Subnet)"
 
 
   ##################
@@ -108,7 +108,7 @@ Resources:
   # Description:
   ##################
 
-  ProductionVPCBackupSubnetOne:
+  ProductionVPCBackupPublicSubnet:
     Type: AWS::EC2::Subnet
     Properties:
       CidrBlock: !Ref BackupSubnetOneNetworkAddress
@@ -116,14 +116,14 @@ Resources:
       VpcId: !Ref ProductionVPC
       Tags: 
         - Key: Name
-          Value: "Backup Subnet One"
+          Value: "Backup Public Subnet"
 
   ##################
-  # Production Subnet 2 
+  # Production Backup Subnet 2 
   # Layer Type: Network Layer 
   # Description:
   ##################
-  ProductionVPCBackupSubnetTwo:
+  ProductionVPCBackupPrivateSubnet:
     Type: AWS::EC2::Subnet
     Properties:
       CidrBlock: !Ref BackupSubnetTwoNetworkAddress
@@ -131,7 +131,7 @@ Resources:
       VpcId: !Ref ProductionVPC
       Tags: 
         - Key: Name
-          Value: "Backup Subnet Two"
+          Value: "Backup Private Subnet"
 
 
 ############################################################################
@@ -235,25 +235,44 @@ Resources:
 
 
 ############################################################################
-##  BACKUP SUBNET ROUTING TABLE CONFIGURATION
+##  BACKUP PUBLIC SUBNET ROUTING TABLE CONFIGURATION
 ############################################################################
 
-  BackupSubnetRoutingTable:
+  BackupPublicSubnetRoutingTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref ProductionVPC
       Tags:
         - Key: Name
-          Value: "Private Subnet Routing Table"
+          Value: "Backup Public Subnet Routing Table"
 
   BackupSubnetRoutingTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: 
-        Ref: BackupSubnetRoutingTable
+        Ref: BackupPublicSubnetRoutingTable
       SubnetId: 
-        Ref: BackupSubnetRoutingTable
+        Ref: ProductionVPCBackupPublicSubnet
 
+############################################################################
+##  BACKUP PRIVATE SUBNET ROUTING TABLE CONFIGURATION
+############################################################################
+
+  BackupPrivateSubnetRoutingTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Backup Private Subnet Routing Table"
+
+  BackupPrivateSubnetRoutingTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: 
+        Ref: BackupPrivateSubnetRoutingTable
+      SubnetId: 
+        Ref: ProductionVPCBackupPrivateSubnet
 
 
 
@@ -478,9 +497,9 @@ Resources:
       AWS::CloudFormation::Init:
         configSets:
           default:
-            - install_and_configure
+            - install_httpd_and_configure
             - install_telnet
-        install_and_configure:
+        install_httpd_and_configure:
           packages:
             yum:
               httpd: []
@@ -542,9 +561,9 @@ Resources:
       AWS::CloudFormation::Init:
         configSets:
           default:
-            - install_and_configure
+            - install_httpd_and_configure
             - install_telnet
-        install_and_configure:
+        install_httpd_and_configure:
           packages:
             yum:
               httpd: []
@@ -593,3 +612,211 @@ Resources:
       Tags:
         - Key: Name
           Value: Web Server Two
+
+
+
+############################################################################
+# OUTPUT
+############################################################################
+Outputs:
+
+  WebServerOnePublicIP:
+    Value: !GetAtt WebServerOne.PublicIp
+    Export:
+      Name: "Web Server One Public IP"
+
+  WebServerOnePublicDnsName:
+    Value: !GetAtt WebServerOne.PublicDnsName
+    Export:
+      Name: "Web Server One Public DNS Name"
+
+
+  WebServerOneInstanceId:
+    Value: !GetAtt WebServerOne.InstanceId
+    Export:
+      Name: "Web Server One EC2 Instance ID"
+
+  
+
+  WebServerOnePrivateIP:
+    Value: !GetAtt WebServerOne.PrivateIp
+    Export:
+      Name: "Web Server One Private IP"
+
+  
+  WebServerOnePrivateDNSName:
+    Value: !GetAtt WebServerOne.PrivateDnsName
+    Export:
+      Name: "Web Server One Private DNS Name"
+
+
+  WebServerOneKeyPairId:
+    Value: !GetAtt WebServerOneKeyPair.KeyPairId
+    Export:
+      Name: "Web Server One Key Pair ID"
+
+  
+
+
+  WebServerTwoPublicIP:
+    Value: !GetAtt WebServerTwo.PublicIp
+    Export:
+      Name: "Web Server Two Public IP"
+
+  WebServerTwoPublicDnsName:
+    Value: !GetAtt WebServerTwo.PublicDnsName
+    Export:
+      Name: "Web Server Two Public DNS Name"
+
+
+  WebServerTwoInstanceId:
+    Value: !GetAtt WebServerTwo.InstanceId
+    Export:
+      Name: "Web Server Two EC2 Instance ID"
+
+  
+
+  WebServerTwoPrivateIP:
+    Value: !GetAtt WebServerTwo.PrivateIp
+    Export:
+      Name: "Web Server Two Private IP"
+
+  
+  WebServerTwoPrivateDNSName:
+    Value: !GetAtt WebServerTwo.PrivateDnsName
+    Export:
+      Name: "Web Server Two Private DNS Name"
+
+  WebServerTwoKeyPairId:
+    Value: !GetAtt WebServerTwoKeyPair.KeyPairId
+    Export:
+      Name: "Web Server Two Key Pair ID"
+
+  SubnetOneACLID:
+    Value: !GetAtt SubnetOneACL.Id
+    Export:
+      Name: "Subnet One ACL ID"
+
+  SubnetTwoACLID:
+    Value: !GetAtt SubnetTwoACL.Id
+    Export:
+      Name: "Subnet Two ACL ID"
+
+
+
+
+
+
+  ProductionVPCSubnetOneAZ:
+      Value: !GetAtt ProductionVPCSubnetOne.AvailabilityZone
+      Export:
+        Name: "Production VPC Subnet One Availability Zone"
+
+  ProductionVPCSubnetOneCidrBlock:
+    Value: !GetAtt ProductionVPCSubnetOne.CidrBlock
+    Export:
+      Name: "Production VPC Subnet One Network Address"
+
+
+  ProductionVPCSubnetOneID:
+    Value:  !GetAtt ProductionVPCSubnetOne.SubnetId
+    Export:
+      Name: "Production VPC Subnet One ID"
+
+  ProductionVPCSubnetOneNetworkAclAssociationId:
+    Value: !GetAtt ProductionVPCSubnetOne.NetworkAclAssociationId
+    Export:
+      Name: "Production VPC Subnet One Network ACL Association ID"
+
+
+
+
+
+
+
+  ProductionVPCSubnetTwoAZ:
+    Value: !GetAtt ProductionVPCSubnetTwo.AvailabilityZone
+    Export:
+      Name: "Production VPC Subnet Two Availability Zone"
+
+  ProductionVPCSubnetTwoCidrBlock:
+    Value: !GetAtt ProductionVPCSubnetTwo.CidrBlock
+    Export:
+      Name: "Production VPC Subnet Two Network Address"
+
+  ProductionVPCSubnetTwoID:
+    Value:  !GetAtt ProductionVPCSubnetTwo.SubnetId
+    Export:
+      Name: "Production VPC Subnet Two ID"
+
+  ProductionVPCSubnetTwoNetworkAclAssociationId:
+    Value: !GetAtt ProductionVPCSubnetTwo.NetworkAclAssociationId
+    Export:
+      Name: "Production VPC Subnet Two Network ACL Association ID"
+
+
+
+  ProductionVPCBackupPublicSubnetAZ:
+    Value: !GetAtt ProductionVPCBackupPublicSubnet.AvailabilityZone
+    Export:
+      Name: "Production VPC Backup Public Subnet Availability Zone"
+
+  ProductionVPCBackupPublicSubnetCidrBlock:
+    Value: !GetAtt ProductionVPCBackupPublicSubnet.CidrBlock
+    Export:
+      Name: "Production VPC Backup Public Subnet Two Network Address"
+
+  ProductionVPCBackupPublicSubnetID:
+    Value: !GetAtt ProductionVPCBackupPublicSubnet.SubnetId
+    Export:
+      Name: "Production VPC Backup Public Subnet ID"
+
+  ProductionVPCBackupPublicSubnetNetworkAclAssociationId:
+    Value: !GetAtt ProductionVPCBackupPublicSubnet.NetworkAclAssociationId
+    Export:
+      Name: "Production VPC Backup Public Subnet Network ACL Association ID"
+
+
+  ProductionVPCBackupPrivateSubnetAZ:
+    Value: !GetAtt ProductionVPCBackupPrivateSubnet.AvailabilityZone
+    Export:
+      Name: "Production VPC Backup Private Subnet Availability Zone"
+
+  ProductionVPCBackupPrivateSubnetCidrBlock:
+    Value: !GetAtt ProductionVPCBackupPrivateSubnet.CidrBlock
+    Export:
+      Name: "Production VPC Backup Private Subnet Two Network Address"
+
+  ProductionVPCBackupPrivateSubnetID:
+    Value: !GetAtt ProductionVPCBackupPrivateSubnet.SubnetId
+    Export:
+      Name: "Production VPC Backup Private Subnet ID"
+
+  ProductionVPCBackupPrivateSubnetNetworkAclAssociationId:
+    Value: !GetAtt ProductionVPCBackupPrivateSubnet.NetworkAclAssociationId
+    Export:
+      Name: "Production VPC Backup Private Subnet Network ACL Association ID"
+
+
+
+
+  ProductionVPCID:
+    Value: !GetAtt ProductionVPC.VpcId
+    Export:
+      Name: "Production VPC ID"
+
+  ProductionVPCCidrBlock:
+    Value: !GetAtt ProductionVPC.CidrBlock
+    Export:
+      Name: "Production VPC Network Address"
+
+  ProductionVPCCidrBlockAssociations:
+    Value: 
+      !Join 
+      - '; '
+      - !GetAtt ProductionVPC.CidrBlockAssociations
+    Export:
+      Name: "Production VPC CIDR Block Associations"
+
+
+
