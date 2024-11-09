@@ -1,0 +1,859 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Infrastructure setup
+
+Parameters:
+  VPCIdentifier:
+    Type: String
+    Description: VPC Identifier
+    Default: '3114394F'
+
+  LatestAL2023AmiId:
+    Description: Latest EC2 Amazon Linux 2023 AMI from Systems Manager Parameter Store
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64'
+
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    Description: EC2 instance type
+
+
+  VPCNetworkAddress:
+    Type: String
+    Description: asd
+    Default: 10.0.0.0/16
+
+  SubnetOneNetworkAddress:
+    Type: String
+    Description: Network Address for Subnet One
+    Default: 10.0.1.0/24
+
+  SubnetTwoNetworkAddress:
+    Type: String
+    Description: Network Address for Subnet Two
+    Default: 10.0.2.0/24
+
+  BackupSubnetOneNetworkAddress:
+    Type: String
+    Description: Network Address for Backup Subnet One
+    Default: 10.0.5.0/24
+
+  BackupSubnetTwoNetworkAddress:
+    Type: String
+    Description: Network Address for Backup Subnet Two
+    Default: 10.0.6.0/24
+  
+
+Resources:
+
+############################################################################
+# NETWORK LAYER 
+############################################################################
+
+  ##################
+  # ProductionVPC
+  # Layer Type: Network Layer 
+  # Description:
+  ##################
+
+  ProductionVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCNetworkAddress
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref VPCIdentifier
+
+
+
+  ##################
+  # Production Subnet 1 
+  # Layer Type: Network Layer 
+  # Description:
+  ##################
+
+  ProductionVPCSubnetOne:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref SubnetOneNetworkAddress
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Subnet One (Public Subnet)"
+
+  ##################
+  # Production Subnet 2 
+  # Layer Type: Network Layer 
+  # Description:
+  ##################
+  ProductionVPCSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref SubnetTwoNetworkAddress
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Subnet Two (Private Subnet)"
+
+
+  ##################
+  # Production Backup Subnet 1 
+  # Layer Type: Network Layer 
+  # Description:
+  ##################
+
+  ProductionVPCBackupPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref BackupSubnetOneNetworkAddress
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      VpcId: !Ref ProductionVPC
+      Tags: 
+        - Key: Name
+          Value: "Backup Public Subnet"
+
+  ##################
+  # Production Backup Subnet 2 
+  # Layer Type: Network Layer 
+  # Description:
+  ##################
+  ProductionVPCBackupPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref BackupSubnetTwoNetworkAddress
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      VpcId: !Ref ProductionVPC
+      Tags: 
+        - Key: Name
+          Value: "Backup Private Subnet"
+
+
+############################################################################
+## INTERNET GATEWAY
+## Layer Type: Network Layer
+############################################################################     
+    
+  ProductionVPCInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties: 
+      Tags:
+        - Key: "Name"
+          Value: "Production VPC Internet Gateway"
+
+
+  AttachInternetGatewayToVPC:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+        InternetGatewayId: 
+          Ref: ProductionVPCInternetGateway
+        VpcId: 
+          Ref: ProductionVPC
+
+############################################################################
+## NAT GATEWAY
+## Layer Type: Network Layer
+############################################################################     
+
+  ProductionVPCSubnetTwoNATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: 
+        Fn::GetAtt: ['NatGatewayEIP', 'AllocationId']
+      SubnetId: !Ref ProductionVPCSubnetOne
+      Tags:
+        - Key: Name
+          Value: "Production VPC Subnet Two NAT Gateway"
+
+  NatGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+############################################################################
+##  PRODUCTION VPC ROUTING TABLE CONFIGURATION
+############################################################################
+
+  SubnetOneRoutingTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Public Subnet Routing Table"
+
+  SubnetOneRoutingTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: 
+        Ref: SubnetOneRoutingTable
+      SubnetId:
+        Ref: ProductionVPCSubnetOne
+
+  RouteToInternet:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: SubnetOneRoutingTable
+      GatewayId: 
+        Ref: ProductionVPCInternetGateway
+      DestinationCidrBlock: '0.0.0.0/0'
+
+
+
+############################################################################
+##  SUBNET TWO SUBNET ROUTING TABLE CONFIGURATION
+############################################################################
+
+  SubnetTwoRoutingTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Private Subnet Routing Table"
+
+  SubnetTwoRoutingTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: 
+        Ref: SubnetTwoRoutingTable
+      SubnetId: 
+        Ref: ProductionVPCSubnetTwo
+
+  RouteNATGateway:
+    Type: AWS::EC2::Route
+    Properties:
+        RouteTableId: !Ref SubnetTwoRoutingTable
+        DestinationCidrBlock: '0.0.0.0/0'
+        NatGatewayId: !Ref ProductionVPCSubnetTwoNATGateway
+
+
+############################################################################
+##  BACKUP PUBLIC SUBNET ROUTING TABLE CONFIGURATION
+############################################################################
+
+  BackupPublicSubnetRoutingTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Backup Public Subnet Routing Table"
+
+  BackupSubnetRoutingTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: 
+        Ref: BackupPublicSubnetRoutingTable
+      SubnetId: 
+        Ref: ProductionVPCBackupPublicSubnet
+
+############################################################################
+##  BACKUP PRIVATE SUBNET ROUTING TABLE CONFIGURATION
+############################################################################
+
+  BackupPrivateSubnetRoutingTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Backup Private Subnet Routing Table"
+
+  BackupPrivateSubnetRoutingTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: 
+        Ref: BackupPrivateSubnetRoutingTable
+      SubnetId: 
+        Ref: ProductionVPCBackupPrivateSubnet
+
+
+
+############################################################################
+##  SUBNET ONE ACCESS CONTROL LIST CONFIGURATION
+############################################################################
+
+#Network ACL will act as a network trap for cloud monitoring to obtain data from
+
+  ##################
+  # Subnet 1 ACL
+  # Layer Type: Network Layer 
+  # Description:
+  ##################
+  SubnetOneACL:
+    Type: AWS::EC2::NetworkAcl
+    Properties: 
+      VpcId: 
+        Ref: ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Subnet One ACL"
+
+  ##################
+  # Subnet 1 ACL Association
+  # Layer Type: Network Layer 
+  # Description: Associate ACL to Subnet One
+  ##################
+  SubnetOneACLAssociation:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: 
+        Ref: SubnetOneACL
+      SubnetId: 
+        Ref: ProductionVPCSubnetOne
+      
+  SubnetOneACLEntryOneInbound:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Ref: SubnetOneACL
+      RuleNumber: 100
+      RuleAction: allow
+      Protocol: -1
+      Egress: false
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 1
+        To: 65535
+
+  SubnetOneACLEntryOneOutbound:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Ref: SubnetOneACL
+      RuleNumber: 100
+      RuleAction: allow
+      Protocol: -1
+      Egress: true
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 1
+        To: 65535
+
+
+
+
+############################################################################
+##  SUBNET TWO ACCESS CONTROL LIST CONFIGURATION
+############################################################################
+
+  ##################
+  # Subnet 2 ACL
+  # Layer Type: Network Layer 
+  # Description:
+  ##################
+  SubnetTwoACL:
+    Type: AWS::EC2::NetworkAcl
+    Properties: 
+      VpcId: 
+        Ref: ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Subnet Two ACL"
+
+
+  SubnetTwoACLEntryOneInbound:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Ref: SubnetTwoACL
+      RuleNumber: 100
+      RuleAction: allow
+      Egress: false
+      Protocol: -1
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 1
+        To: 65535
+
+
+  SubnetTwoACLEntryOneOutbound:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Ref: SubnetTwoACL
+      RuleNumber: 100
+      RuleAction: allow
+      Egress: true
+      Protocol: -1
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 1
+        To: 65535
+
+
+  ##################
+  # Subnet 2 ACL Association
+  # Layer Type: Network Layer 
+  # Description: Associate ACL to Subnet One
+  ##################
+  SubnetTwoACLAssociation:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: 
+        Ref: SubnetTwoACL
+      SubnetId: 
+        Ref: ProductionVPCSubnetTwo
+
+
+
+
+
+
+
+
+############################################################################
+# SECURITY LAYER 
+############################################################################
+
+  ##################
+  # Web Server One Security Group
+  # Layer Type: Security Layer 
+  # Description:
+  ##################
+  WebServerOneSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow Internet users to access HTTP (Port 80)
+      VpcId: 
+        Ref: ProductionVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: "Web Server One Security Group"
+
+
+  ##################
+  # Web Server Two Security Group
+  # Layer Type: Security Layer 
+  # Description:
+  ##################
+
+  WebServerTwoSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow Internet Users to access SSH (Port 22)
+      VpcId: 
+        Ref: ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Web Server Two Security Group"
+
+  WebServerTwoSecurityGroupIngressRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: 
+        Ref: WebServerTwoSecurityGroup
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: 0.0.0.0/0
+  
+
+############################################################################
+## KEY PAIR (SECURITY LAYER)
+############################################################################
+
+  WebServerOneKeyPair:
+    Type: 'AWS::EC2::KeyPair'
+    Properties:
+      KeyName: WebServerOneKeyPair
+
+  WebServerTwoKeyPair:
+    Type: 'AWS::EC2::KeyPair'
+    Properties:
+      KeyName: WebServerTwoKeyPair
+
+
+
+############################################################################
+# COMPUTE LAYER 
+############################################################################
+
+  ##################
+  # Web Server One EC2
+  # Layer Type: Compute Layer 
+  # Description:
+  ##################
+
+  WebServerOne:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          default:
+            - install_httpd_and_configure
+            - install_telnet
+        install_httpd_and_configure:
+          packages:
+            yum:
+              httpd: []
+          files:
+            "/var/www/html/index.html":
+              content: |
+                <html>
+                  <body>
+                    <h1>Hello From Your Web Server 1</h1>
+                  </body>
+                </html>
+              mode: "000644"
+              owner: "apache"
+              group: "apache"
+          services:
+            sysvinit:
+              httpd:
+                enabled: "true"
+                ensureRunning: "true"
+        install_telnet:
+          packages:
+            yum:
+              telnet: []
+          services:
+            sysvinit:
+              telnet:
+                enabled: "true"
+                ensureRunning: "true"
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref LatestAL2023AmiId
+      KeyName: !Ref WebServerOneKeyPair
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          GroupSet: 
+            - !Ref WebServerOneSecurityGroup
+          SubnetId: !Ref ProductionVPCSubnetOne
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash -xe
+              yum update -y aws-cfn-bootstrap
+              /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource WebServerOne --region ${AWS::Region}
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource WebServerOne --region ${AWS::Region}
+      Tags:
+        - Key: Name
+          Value: Web Server One
+
+
+  WebServerOneStorageVolume:
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: 10
+      AvailabilityZone: !GetAtt WebServerOne.AvailabilityZone
+      Encrypted: true
+      VolumeType: gp3
+      MultiAttachEnabled: false
+      Tags:
+        - Key: Name
+          Value: Web Server One Storage Volume
+
+
+  WebServerOneStorageVolumeAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      InstanceId: !Ref WebServerOne
+      VolumeId: !Ref WebServerOneStorageVolume
+      Device: /dev/sdf
+
+
+
+  ##################
+  # Web Server Two EC2
+  # Layer Type: Compute Layer 
+  # Description:
+  ##################
+
+  WebServerTwo:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          default:
+            - install_httpd_and_configure
+            - install_telnet
+        install_httpd_and_configure:
+          packages:
+            yum:
+              httpd: []
+          files:
+            "/var/www/html/index.html":
+              content: |
+                <html>
+                  <body>
+                    <h1>Hello From Your Web Server 2</h1>
+                  </body>
+                </html>
+              mode: "000644"
+              owner: "apache"
+              group: "apache"
+          services:
+            sysvinit:
+              httpd:
+                enabled: "true"
+                ensureRunning: "true"
+        install_telnet:
+          packages:
+            yum:
+              telnet: []
+          services:
+            sysvinit:
+              telnet:
+                enabled: "true"
+                ensureRunning: "true"
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref LatestAL2023AmiId
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          GroupSet: 
+            - !Ref WebServerTwoSecurityGroup
+          SubnetId: !Ref ProductionVPCSubnetOne
+      KeyName: !Ref WebServerTwoKeyPair
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash -xe
+              yum update -y aws-cfn-bootstrap
+              /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource WebServerTwo --region ${AWS::Region}
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource WebServerTwo --region ${AWS::Region}
+      Tags:
+        - Key: Name
+          Value: Web Server Two
+
+
+ WebServerTwoStorageVolume:
+    Type: AWS::EC2::Volume
+    Properties:
+      Size: 10
+      AvailabilityZone: !GetAtt WebServerTwo.AvailabilityZone
+      Encrypted: true
+      VolumeType: gp3
+      MultiAttachEnabled: false
+      Tags:
+        - Key: Name
+          Value: Web Server Two Storage Volume
+
+  WebServerTwoStorageVolumeAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      InstanceId: !Ref WebServerTwo
+      VolumeId: !Ref WebServerTwoStorageVolume
+      Device: /dev/sdv
+
+
+
+
+############################################################################
+# OUTPUT
+############################################################################
+Outputs:
+
+  WebServerOnePublicIP:
+    Value: !GetAtt WebServerOne.PublicIp
+    Export:
+      Name: "Web-Server-One-Public-IP"
+
+  WebServerOnePublicDnsName:
+    Value: !GetAtt WebServerOne.PublicDnsName
+    Export:
+      Name: "Web-Server-One-Public-DNS-Name"
+
+
+  WebServerOneInstanceId:
+    Value: !GetAtt WebServerOne.InstanceId
+    Export:
+      Name: "Web-Server-One-EC2-Instance-ID"
+
+  
+
+  WebServerOnePrivateIP:
+    Value: !GetAtt WebServerOne.PrivateIp
+    Export:
+      Name: "Web-Server-One-Private-IP"
+
+  
+  WebServerOnePrivateDNSName:
+    Value: !GetAtt WebServerOne.PrivateDnsName
+    Export:
+      Name: "Web-Server-One-Private-DNS-Name"
+
+
+  WebServerOneKeyPairId:
+    Value: !GetAtt WebServerOneKeyPair.KeyPairId
+    Export:
+      Name: "Web-Server-One-Key-Pair-ID"
+
+  
+
+  WebServerTwoPublicIP:
+    Value: !GetAtt WebServerTwo.PublicIp
+    Export:
+      Name: "Web-Server-Two-Public-IP"
+
+  WebServerTwoPublicDnsName:
+    Value: !GetAtt WebServerTwo.PublicDnsName
+    Export:
+      Name: "Web-Server-Two-Public-DNS-Name"
+
+
+  WebServerTwoInstanceId:
+    Value: !GetAtt WebServerTwo.InstanceId
+    Export:
+      Name: "Web-Server-Two-EC2-Instance-ID"
+
+  
+
+  WebServerTwoPrivateIP:
+    Value: !GetAtt WebServerTwo.PrivateIp
+    Export:
+      Name: "Web-Server-Two-Private-IP"
+
+  
+  WebServerTwoPrivateDNSName:
+    Value: !GetAtt WebServerTwo.PrivateDnsName
+    Export:
+      Name: "Web-Server-Two-Private-DNS-Name"
+
+  WebServerTwoKeyPairId:
+    Value: !GetAtt WebServerTwoKeyPair.KeyPairId
+    Export:
+      Name: "Web-Server-Two-Key-Pair-ID"
+
+  SubnetOneACLID:
+    Value: !GetAtt SubnetOneACL.Id
+    Export:
+      Name: "Subnet-One-ACL-ID"
+
+  SubnetTwoACLID:
+    Value: !GetAtt SubnetTwoACL.Id
+    Export:
+      Name: "Subnet-Two-ACL-ID"
+
+  ProductionVPCSubnetOneAZ:
+      Value: !GetAtt ProductionVPCSubnetOne.AvailabilityZone
+      Export:
+        Name: "Production-VPC-Subnet-One-Availability-Zone"
+
+  ProductionVPCSubnetOneCidrBlock:
+    Value: !GetAtt ProductionVPCSubnetOne.CidrBlock
+    Export:
+      Name: "Production-VPC-Subnet-One-Network-Address"
+
+
+  ProductionVPCSubnetOneID:
+    Value:  !GetAtt ProductionVPCSubnetOne.SubnetId
+    Export:
+      Name: "Production-VPC-Subnet-One-ID"
+
+  ProductionVPCSubnetOneNetworkAclAssociationId:
+    Value: !GetAtt ProductionVPCSubnetOne.NetworkAclAssociationId
+    Export:
+      Name: "Production-VPC-Subnet-One-Network-ACL-Association-ID"
+
+
+
+
+
+
+
+  ProductionVPCSubnetTwoAZ:
+    Value: !GetAtt ProductionVPCSubnetTwo.AvailabilityZone
+    Export:
+      Name: "Production-VPC-Subnet-Two-Availability-Zone"
+
+  ProductionVPCSubnetTwoCidrBlock:
+    Value: !GetAtt ProductionVPCSubnetTwo.CidrBlock
+    Export:
+      Name: "Production-VPC-Subnet-Two-Network-Address"
+
+  ProductionVPCSubnetTwoID:
+    Value:  !GetAtt ProductionVPCSubnetTwo.SubnetId
+    Export:
+      Name: "Production-VPC-Subnet-Two-ID"
+
+  ProductionVPCSubnetTwoNetworkAclAssociationId:
+    Value: !GetAtt ProductionVPCSubnetTwo.NetworkAclAssociationId
+    Export:
+      Name: "Production-VPC-Subnet-Two-Network-ACL-Association-ID"
+
+
+
+  ProductionVPCBackupPublicSubnetAZ:
+    Value: !GetAtt ProductionVPCBackupPublicSubnet.AvailabilityZone
+    Export:
+      Name: "Production-VPC-Backup-Public-Subnet-Availability-Zone"
+
+  ProductionVPCBackupPublicSubnetCidrBlock:
+    Value: !GetAtt ProductionVPCBackupPublicSubnet.CidrBlock
+    Export:
+      Name: "Production-VPC-Backup-Public-Subnet-Two-Network-Address"
+
+  ProductionVPCBackupPublicSubnetID:
+    Value: !GetAtt ProductionVPCBackupPublicSubnet.SubnetId
+    Export:
+      Name: "Production-VPC-Backup-Public-Subnet-ID"
+
+  ProductionVPCBackupPublicSubnetNetworkAclAssociationId:
+    Value: !GetAtt ProductionVPCBackupPublicSubnet.NetworkAclAssociationId
+    Export:
+      Name: "Production-VPC-Backup-Public-Subnet-Network-ACL-Association-ID"
+
+
+  ProductionVPCBackupPrivateSubnetAZ:
+    Value: !GetAtt ProductionVPCBackupPrivateSubnet.AvailabilityZone
+    Export:
+      Name: "Production-VPC-Backup-Private-Subnet-Availability-Zone"
+
+  ProductionVPCBackupPrivateSubnetCidrBlock:
+    Value: !GetAtt ProductionVPCBackupPrivateSubnet.CidrBlock
+    Export:
+      Name: "Production-VPC-Backup-Private-Subnet-Two-Network-Address"
+
+  ProductionVPCBackupPrivateSubnetID:
+    Value: !GetAtt ProductionVPCBackupPrivateSubnet.SubnetId
+    Export:
+      Name: "Production-VPC-Backup-Private-Subnet-ID"
+
+  ProductionVPCBackupPrivateSubnetNetworkAclAssociationId:
+    Value: !GetAtt ProductionVPCBackupPrivateSubnet.NetworkAclAssociationId
+    Export:
+      Name: "Production-VPC-Backup-Private-Subnet-Network-ACL-Association-ID"
+
+
+
+
+  ProductionVPCID:
+    Value: !GetAtt ProductionVPC.VpcId
+    Export:
+      Name: "Production-VPC-ID"
+
+  ProductionVPCCidrBlock:
+    Value: !GetAtt ProductionVPC.CidrBlock
+    Export:
+      Name: "Production-VPC-Network-Address"
+
+  ProductionVPCCidrBlockAssociations:
+    Value: 
+      !Join 
+      - '; '
+      - !GetAtt ProductionVPC.CidrBlockAssociations
+    Export:
+      Name: "Production-VPC-CIDR-Block-Associations"
+
+
