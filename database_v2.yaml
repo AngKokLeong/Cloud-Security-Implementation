@@ -166,12 +166,7 @@ Resources:
       VPCSecurityGroups: 
         - !Ref MySQLDBSecurityGroup
       DBParameterGroupName: !Ref RDSInstanceParameterGroup
-      #MonitoringInterval: 60
-      #MonitoringRoleArn: !Ref MonitoringRoleArn
-      #EnablePerformanceInsights: true
-      #PerformanceInsightsRetentionPeriod: 7
       DeletionProtection: false
-      #CopyTagsToSnapshot: true
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
 
