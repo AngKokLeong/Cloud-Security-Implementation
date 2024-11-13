@@ -5,7 +5,7 @@ Parameters:
   VPCIdentifier:
     Type: String
     Description: VPC Identifier
-    Default: '3114394F'
+    Default: '3114394F_VPC'
 
   LatestAL2023AmiId:
     Description: Latest EC2 Amazon Linux 2023 AMI from Systems Manager Parameter Store
