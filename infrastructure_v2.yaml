@@ -23,24 +23,37 @@ Parameters:
     Description: asd
     Default: 10.0.0.0/16
 
-  SubnetOneNetworkAddress:
+
+  SSHSanitizeAreaOneNetworkAddress:
     Type: String
-    Description: Network Address for Subnet One
+    Description: Network Address for SSH Sanitize Area Subnet One
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     Default: 10.0.1.0/24
 
-  SubnetTwoNetworkAddress:
+  SSHSanitizeAreaTwoNetworkAddress:
     Type: String
-    Description: Network Address for Subnet Two
+    Description: Network Address for SSH Sanitize Area Subnet Two
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     Default: 10.0.2.0/24
 
-  BackupSubnetOneNetworkAddress:
+  PrivateWebServerSubnetOneNetworkAddress:
     Type: String
-    Description: Network Address for Backup Subnet One
+    Description: Network Address for Public Web Server Subnet One
+    Default: 10.0.3.0/24
+
+  PrivateWebServerSubnetTwoNetworkAddress:
+    Type: String
+    Description: Network Address for Public Web Server Subnet Two
+    Default: 10.0.4.0/24
+
+  PrivateDBSubnetOneNetworkAddress:
+    Type: String
+    Description: Network Address for Private DB Subnet One
     Default: 10.0.5.0/24
 
-  BackupSubnetTwoNetworkAddress:
+  PrivateDBSubnetTwoNetworkAddress:
     Type: String
-    Description: Network Address for Backup Subnet Two
+    Description: Network Address for Private DB Subnet Two
     Default: 10.0.6.0/24
   
 
@@ -68,70 +81,76 @@ Resources:
 
 
 
+
   ##################
-  # Production Subnet 1 
+  # Public Web Server Subnet One 
   # Layer Type: Network Layer 
   # Description:
   ##################
 
-  ProductionVPCSubnetOne:
+  PrivateWebServerSubnetOne:
     Type: AWS::EC2::Subnet
     Properties:
-      CidrBlock: !Ref SubnetOneNetworkAddress
-      AvailabilityZone: !Select [ 0, !GetAZs '' ]
-      MapPublicIpOnLaunch: true
-      VpcId: !Ref ProductionVPC
-      Tags:
-        - Key: Name
-          Value: "Subnet One (Public Subnet)"
-
-  ##################
-  # Production Subnet 2 
-  # Layer Type: Network Layer 
-  # Description:
-  ##################
-  ProductionVPCSubnetTwo:
-    Type: AWS::EC2::Subnet
-    Properties:
-      CidrBlock: !Ref SubnetTwoNetworkAddress
+      CidrBlock: !Ref PrivateWebServerSubnetOneNetworkAddress
       AvailabilityZone: !Select [ 0, !GetAZs '' ]
       MapPublicIpOnLaunch: false
       VpcId: !Ref ProductionVPC
       Tags:
         - Key: Name
-          Value: "Subnet Two (Private Subnet)"
+          Value: "Public Web Server Subnet One"
+
 
 
   ##################
-  # Production Backup Subnet 1 
+  # Public Web Server Subnet Two
+  # Layer Type: Network Layer 
+  # Description:
+  ##################
+  PrivateWebServerSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref PrivateWebServerSubnetTwoNetworkAddress
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Public Web Server Subnet Two"
+
+
+
+  ##################
+  # Private DB Subnet 1 
   # Layer Type: Network Layer 
   # Description:
   ##################
 
-  ProductionVPCBackupPublicSubnet:
+  PrivateDBSubnetOne:
     Type: AWS::EC2::Subnet
     Properties:
-      CidrBlock: !Ref BackupSubnetOneNetworkAddress
-      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: !Ref PrivateDBSubnetOneNetworkAddress
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
       VpcId: !Ref ProductionVPC
       Tags: 
         - Key: Name
-          Value: "Backup Public Subnet"
+          Value: "Private DB Subnet One"
+
 
   ##################
-  # Production Backup Subnet 2 
+  # Private DB Subnet 2 
   # Layer Type: Network Layer 
   # Description:
   ##################
-  ProductionVPCBackupPrivateSubnet:
+  PrivateDBSubnetTwo:
     Type: AWS::EC2::Subnet
     Properties:
-      CidrBlock: !Ref BackupSubnetTwoNetworkAddress
+      CidrBlock: !Ref PrivateDBSubnetTwoNetworkAddress
       AvailabilityZone: !Select [ 1, !GetAZs '' ]
       VpcId: !Ref ProductionVPC
       Tags: 
         - Key: Name
-          Value: "Backup Private Subnet"
+          Value: "Private DB Subnet Two"
+
 
 
 ############################################################################
@@ -155,51 +174,74 @@ Resources:
         VpcId: 
           Ref: ProductionVPC
 
-############################################################################
-## NAT GATEWAY
-## Layer Type: Network Layer
-############################################################################     
 
-  ProductionVPCSubnetTwoNATGateway:
-    Type: AWS::EC2::NatGateway
+
+  ##################
+  # SSH Sanitize Area One Subnet
+  # Layer Type: Network Layer 
+  # Description: 
+  ##################
+
+  SSHSanitizeAreaSubnetOne:
+    Type: AWS::EC2::Subnet
     Properties:
-      AllocationId: 
-        Fn::GetAtt: ['NatGatewayEIP', 'AllocationId']
-      SubnetId: !Ref ProductionVPCSubnetOne
-      Tags:
-        - Key: Name
-          Value: "Production VPC Subnet Two NAT Gateway"
-
-  NatGatewayEIP:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
-
-############################################################################
-##  PRODUCTION VPC ROUTING TABLE CONFIGURATION
-############################################################################
-
-  SubnetOneRoutingTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
+      CidrBlock: 
+        Ref: SSHSanitizeAreaOneNetworkAddress
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
       VpcId: !Ref ProductionVPC
       Tags:
         - Key: Name
-          Value: "Public Subnet Routing Table"
+          Value: "SSH Sanitize Area Subnet One"
+
+
+  ##################
+  # SSH Sanitize Area Two Subnet
+  # Layer Type: Network Layer 
+  # Description: 
+  ##################
+
+  SSHSanitizeAreaSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 
+        Ref: SSHSanitizeAreaTwoNetworkAddress
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "SSH Sanitize Area Subnet Two"
+
+  
+
+
+############################################################################
+##  Public SSH Sanitize Area 1 ROUTING TABLE CONFIGURATION
+############################################################################
+
+  PublicSSHSanitizeAreaOneRoutingTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: 
+        Ref: ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Public SSH Sanitize Area Routing Table"
 
   SubnetOneRoutingTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: 
       RouteTableId: 
-        Ref: SubnetOneRoutingTable
+        Ref: PublicSSHSanitizeAreaOneRoutingTable
       SubnetId:
-        Ref: ProductionVPCSubnetOne
+        Ref: SSHSanitizeAreaSubnetOne
 
-  RouteToInternet:
+  RouteToInternetFromSSHSanitizeAreaSubnet1:
     Type: AWS::EC2::Route
     Properties:
       RouteTableId:
-        Ref: SubnetOneRoutingTable
+        Ref: PublicSSHSanitizeAreaOneRoutingTable
       GatewayId: 
         Ref: ProductionVPCInternetGateway
       DestinationCidrBlock: '0.0.0.0/0'
@@ -207,10 +249,10 @@ Resources:
 
 
 ############################################################################
-##  SUBNET TWO SUBNET ROUTING TABLE CONFIGURATION
+##  Public SSH Sanitize Area 2 ROUTING TABLE CONFIGURATION
 ############################################################################
 
-  SubnetTwoRoutingTable:
+  PublicSSHSanitizeAreaTwoRoutingTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref ProductionVPC
@@ -222,98 +264,58 @@ Resources:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: 
-        Ref: SubnetTwoRoutingTable
+        Ref: PublicSSHSanitizeAreaTwoRoutingTable
       SubnetId: 
-        Ref: ProductionVPCSubnetTwo
+        Ref: SSHSanitizeAreaSubnetTwo
 
-  RouteNATGateway:
-    Type: AWS::EC2::Route
-    Properties:
-        RouteTableId: !Ref SubnetTwoRoutingTable
+  RouteToInternetFromSSHSanitizeAreaSubnet2:
+      Type: AWS::EC2::Route
+      Properties:
+        RouteTableId:
+          Ref: PublicSSHSanitizeAreaTwoRoutingTable
+        GatewayId: 
+          Ref: ProductionVPCInternetGateway
         DestinationCidrBlock: '0.0.0.0/0'
-        NatGatewayId: !Ref ProductionVPCSubnetTwoNATGateway
 
 
 ############################################################################
-##  BACKUP PUBLIC SUBNET ROUTING TABLE CONFIGURATION
-############################################################################
-
-  BackupPublicSubnetRoutingTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref ProductionVPC
-      Tags:
-        - Key: Name
-          Value: "Backup Public Subnet Routing Table"
-
-  BackupSubnetRoutingTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: 
-        Ref: BackupPublicSubnetRoutingTable
-      SubnetId: 
-        Ref: ProductionVPCBackupPublicSubnet
-
-############################################################################
-##  BACKUP PRIVATE SUBNET ROUTING TABLE CONFIGURATION
-############################################################################
-
-  BackupPrivateSubnetRoutingTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref ProductionVPC
-      Tags:
-        - Key: Name
-          Value: "Backup Private Subnet Routing Table"
-
-  BackupPrivateSubnetRoutingTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: 
-        Ref: BackupPrivateSubnetRoutingTable
-      SubnetId: 
-        Ref: ProductionVPCBackupPrivateSubnet
-
-
-
-############################################################################
-##  SUBNET ONE ACCESS CONTROL LIST CONFIGURATION
+##  SSH Sanitize Area ACCESS CONTROL LIST 1 CONFIGURATION
 ############################################################################
 
 #Network ACL will act as a network trap for cloud monitoring to obtain data from
 
   ##################
-  # Subnet 1 ACL
+  # SSH Sanitize Area ACL 1
   # Layer Type: Network Layer 
   # Description:
   ##################
-  SubnetOneACL:
+  SSHSanitizeAreaSubnetOneACL:
     Type: AWS::EC2::NetworkAcl
     Properties: 
       VpcId: 
         Ref: ProductionVPC
       Tags:
         - Key: Name
-          Value: "Subnet One ACL"
+          Value: "SSH Sanitize Area ACL 1"
 
   ##################
-  # Subnet 1 ACL Association
+  # SSH Sanitize Area Subnet 1 ACL Association
   # Layer Type: Network Layer 
   # Description: Associate ACL to Subnet One
   ##################
-  SubnetOneACLAssociation:
+  SSHSanitizeAreaSubnetOneACLAssociation:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     Properties:
       NetworkAclId: 
-        Ref: SubnetOneACL
+        Ref: SSHSanitizeAreaSubnetOneACL
       SubnetId: 
-        Ref: ProductionVPCSubnetOne
+        Ref: SSHSanitizeAreaSubnetOne
       
-  SubnetOneACLEntryOneInbound:
+  SSHSanitizeAreaSubnetOneACLEntryOneInbound:
     Type: AWS::EC2::NetworkAclEntry
     Properties:
       NetworkAclId:
-        Ref: SubnetOneACL
+        Ref: SSHSanitizeAreaSubnetOneACL
       RuleNumber: 100
       RuleAction: allow
       Protocol: -1
@@ -327,7 +329,7 @@ Resources:
     Type: AWS::EC2::NetworkAclEntry
     Properties:
       NetworkAclId:
-        Ref: SubnetOneACL
+        Ref: SSHSanitizeAreaSubnetOneACL
       RuleNumber: 100
       RuleAction: allow
       Protocol: -1
@@ -341,29 +343,29 @@ Resources:
 
 
 ############################################################################
-##  SUBNET TWO ACCESS CONTROL LIST CONFIGURATION
+##  SSH Sanitize Area ACCESS CONTROL LIST 2 CONFIGURATION
 ############################################################################
 
   ##################
-  # Subnet 2 ACL
+  # SSH Sanitize Area Access Control List 2
   # Layer Type: Network Layer 
   # Description:
   ##################
-  SubnetTwoACL:
+  SSHSanitizeAreaSubnetTwoACL:
     Type: AWS::EC2::NetworkAcl
     Properties: 
       VpcId: 
         Ref: ProductionVPC
       Tags:
         - Key: Name
-          Value: "Subnet Two ACL"
+          Value: "SSH Sanitize Area ACL 2"
 
 
   SubnetTwoACLEntryOneInbound:
     Type: AWS::EC2::NetworkAclEntry
     Properties:
       NetworkAclId:
-        Ref: SubnetTwoACL
+        Ref: SSHSanitizeAreaSubnetTwoACL
       RuleNumber: 100
       RuleAction: allow
       Egress: false
@@ -378,7 +380,7 @@ Resources:
     Type: AWS::EC2::NetworkAclEntry
     Properties:
       NetworkAclId:
-        Ref: SubnetTwoACL
+        Ref: SSHSanitizeAreaSubnetTwoACL
       RuleNumber: 100
       RuleAction: allow
       Egress: true
@@ -390,28 +392,351 @@ Resources:
 
 
   ##################
-  # Subnet 2 ACL Association
+  # SSH Sanitize Area Subnet 2 ACL Association
   # Layer Type: Network Layer 
-  # Description: Associate ACL to Subnet One
+  # Description: Associate ACL to Public Web Server Subnet Two
   ##################
   SubnetTwoACLAssociation:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     Properties:
       NetworkAclId: 
-        Ref: SubnetTwoACL
+        Ref: SSHSanitizeAreaSubnetTwoACL
       SubnetId: 
-        Ref: ProductionVPCSubnetTwo
+        Ref: SSHSanitizeAreaSubnetTwo
 
 
 
 
+############################################################################
+## APPLICATION LOAD BALANCER
+## Layer Type: Network Layer
+############################################################################    
 
+  # Application Load Balancer
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: secure-alb
+      Scheme: internet-facing
+      Type: application
+      IpAddressType: ipv4
+      Subnets: 
+        - !Ref PrivateWebServerSubnetOne
+        - !Ref PrivateWebServerSubnetTwo
+      SecurityGroups: 
+        - !Ref ProductionVPCALBSecurityGroup
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: '60'
+        - Key: routing.http2.enabled
+          Value: 'true'
+
+
+  # Target Group
+  ALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckEnabled: true
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      Port: 80
+      Protocol: HTTP
+      TargetType: instance
+      TargetGroupAttributes:
+        - Key: stickiness.enabled
+          Value: 'true'
+        - Key: stickiness.type
+          Value: lb_cookie
+        - Key: stickiness.lb_cookie.duration_seconds
+          Value: '86400'
+      VpcId: 
+        Ref: ProductionVPC
+      Targets:
+        - Id: !GetAtt WebServerOne.InstanceId
+          Port: 80
+        - Id: !GetAtt WebServerTwo.InstanceId
+          Port: 80
+
+  # HTTPS Listener
+  ALBHTTPSListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ALBTargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+
+
+
+############################################################################
+## SSH Sanitize Area Subnet One NAT GATEWAY
+## Layer Type: Network Layer
+############################################################################     
+
+  SSHSanitizeAreaSubnetOneNATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: 
+        Fn::GetAtt: ['SSHSanitizeAreaSubnetOneNATGatewayEIP', 'AllocationId']
+      SubnetId: !Ref SSHSanitizeAreaSubnetOne
+      Tags:
+        - Key: Name
+          Value: "SSH Sanitize Area Subnet One NAT Gateway"
+
+  SSHSanitizeAreaSubnetOneNATGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+
+############################################################################
+## SSH Sanitize Area Subnet Two NAT GATEWAY
+## Layer Type: Network Layer
+############################################################################     
+
+  SSHSanitizeAreaSubnetTwoNATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: 
+        Fn::GetAtt: ['SSHSanitizeAreaSubnetTwoNatGatewayEIP', 'AllocationId']
+      SubnetId: !Ref SSHSanitizeAreaSubnetTwo
+      Tags:
+        - Key: Name
+          Value: "SSH Sanitize Area Subnet Two NAT Gateway"
+
+  SSHSanitizeAreaSubnetTwoNatGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+
+############################################################################
+##  PRIVATE WEB SERVER SUBNET 1 ROUTING TABLE CONFIGURATION
+############################################################################
+
+  PrivateWebServerSubnetOneRoutingTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Private Web Server Subnet Routing Table 1"
+
+  PrivateWebServerSubnetRoutingTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: 
+        Ref: PrivateWebServerSubnetOneRoutingTable
+      SubnetId: 
+        Ref: PrivateWebServerSubnetOne
+
+
+  RouteNATGatewayFromPrivateWebServerSubnetOne:
+    Type: AWS::EC2::Route
+    Properties:
+        RouteTableId: !Ref PrivateWebServerSubnetOneRoutingTable
+        DestinationCidrBlock: '0.0.0.0/0'
+        NatGatewayId: !Ref SSHSanitizeAreaSubnetOneNATGateway
+
+
+
+############################################################################
+##  PRIVATE WEB SERVER 2 ROUTING TABLE CONFIGURATION
+############################################################################
+
+  PrivateWebServerSubnetTwoRoutingTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Private Web Server Subnet Two Routing Table"
+
+  PrivateWebServerSubnetTwoRoutingTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: 
+        Ref: PrivateWebServerSubnetTwoRoutingTable
+      SubnetId: 
+        Ref: PrivateWebServerSubnetTwo
+
+
+  RouteNATGatewayToPrivateWebServerSubnetTwo:
+    Type: AWS::EC2::Route
+    Properties:
+        RouteTableId: !Ref PrivateWebServerSubnetTwoRoutingTable
+        DestinationCidrBlock: '0.0.0.0/0'
+        NatGatewayId: !Ref SSHSanitizeAreaSubnetTwoNATGateway
+
+
+
+############################################################################
+## Public Web Server Subnet One NAT GATEWAY
+## Layer Type: Network Layer
+############################################################################     
+
+  PrivateWebServerSubnetOneNATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: 
+        Fn::GetAtt: ['PrivateWebServerSubnetOneNatGatewayEIP', 'AllocationId']
+      SubnetId: !Ref PrivateWebServerSubnetOne
+      Tags:
+        - Key: Name
+          Value: "Public Web Server Subnet One NAT Gateway"
+
+  PrivateWebServerSubnetOneNatGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+
+############################################################################
+## Private Web Server Subnet Two NAT GATEWAY
+## Layer Type: Network Layer
+############################################################################     
+
+  PrivateWebServerSubnetTwoNATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: 
+        Fn::GetAtt: ['PrivateWebServerSubnetTwoNatGatewayEIP', 'AllocationId']
+      SubnetId: !Ref PrivateWebServerSubnetTwo
+      Tags:
+        - Key: Name
+          Value: "Public Web Server Subnet Two NAT Gateway"
+
+  PrivateWebServerSubnetTwoNatGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+
+############################################################################
+##  PRIVATE DB SUBNET 1 ROUTING TABLE CONFIGURATION
+############################################################################
+
+  PrivateDBSubnetOneRoutingTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Private DB Subnet Routing Table 1"
+
+  BackupSubnetRoutingTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: 
+        Ref: PrivateDBSubnetOneRoutingTable
+      SubnetId: 
+        Ref: PrivateDBSubnetOne
+
+
+  RouteNATGatewayFromPrivateDBSubnetOne:
+    Type: AWS::EC2::Route
+    Properties:
+        RouteTableId: !Ref PrivateDBSubnetOneRoutingTable
+        DestinationCidrBlock: '0.0.0.0/0'
+        NatGatewayId: !Ref PrivateWebServerSubnetOneNATGateway
+
+
+
+############################################################################
+##  PRIVATE DB SUBNET 2 ROUTING TABLE CONFIGURATION
+############################################################################
+
+  PrivateDBSubnetTwoRoutingTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Private DB Subnet Routing Table 2"
+
+  BackupPrivateSubnetRoutingTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: 
+        Ref: PrivateDBSubnetTwoRoutingTable
+      SubnetId: 
+        Ref: PrivateDBSubnetTwo
+
+
+  RouteNATGateway:
+    Type: AWS::EC2::Route
+    Properties:
+        RouteTableId: !Ref PrivateDBSubnetTwoRoutingTable
+        DestinationCidrBlock: '0.0.0.0/0'
+        NatGatewayId: !Ref PrivateWebServerSubnetOneNATGateway
 
 
 
 ############################################################################
 # SECURITY LAYER 
 ############################################################################
+
+
+
+  ##################
+  # Bastion Host One Security Group
+  # Layer Type: Security Layer 
+  # Description:
+  ##################
+
+  BastionHostOneSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow Internet Users to access SSH (Port 22)
+      VpcId: 
+        Ref: ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Bastion Host One Security Group"
+
+  BastionHostOneSecurityGroupIngressRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: 
+        Ref: BastionHostOneSecurityGroup
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: 0.0.0.0/0
+
+  ##################
+  # Bastion Host Two Security Group
+  # Layer Type: Security Layer 
+  # Description:
+  ##################
+
+  BastionHostTwoSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow Internet Users to access SSH (Port 22)
+      VpcId: 
+        Ref: ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Bastion Host Two Security Group"
+
+  BastionHostTwoSecurityGroupIngressRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: 
+        Ref: BastionHostTwoSecurityGroup
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: 0.0.0.0/0
+
 
   ##################
   # Web Server One Security Group
@@ -424,18 +749,60 @@ Resources:
       GroupDescription: Allow Internet users to access HTTP (Port 80)
       VpcId: 
         Ref: ProductionVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
           Value: "Web Server One Security Group"
+
+
+  WebServerOneSecurityGroupIngressHTTPRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: 
+        Ref: WebServerOneSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      SourceSecurityGroupId:
+        Ref: ProductionVPCALBSecurityGroup
+
+  WebServerOneSecurityGroupIngressHTTPSRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: 
+        Ref: WebServerOneSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId:
+        Ref: ProductionVPCALBSecurityGroup
+
+
+
+  ##################
+  # Web Server One SSH Security Group
+  # Layer Type: Security Layer 
+  # Description:
+  ##################
+  WebServerOneSSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow Internet users to access SSH (Port 22)
+      VpcId: 
+        Ref: ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Web Server One SSH Security Group"
+
+  WebServerOneSecurityGroupIngressSSHRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: 
+        Ref: WebServerOneSecurityGroup
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      SourceSecurityGroupId:
+        Ref: BastionHostOneSecurityGroup
 
 
   ##################
@@ -447,27 +814,118 @@ Resources:
   WebServerTwoSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow Internet Users to access SSH (Port 22)
+      GroupDescription: Allow Internet Users to access HTTP (Port 80)
       VpcId: 
         Ref: ProductionVPC
       Tags:
         - Key: Name
           Value: "Web Server Two Security Group"
 
-  WebServerTwoSecurityGroupIngressRule:
+  WebServerTwoSecurityGroupIngressHTTPRule:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: 
         Ref: WebServerTwoSecurityGroup
       IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      SourceSecurityGroupId:
+        Ref: ProductionVPCALBSecurityGroup
+  
+  WebServerTwoSecurityGroupIngressHTTPSRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: 
+        Ref: WebServerTwoSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId:
+        Ref: ProductionVPCALBSecurityGroup
+
+
+  ##################
+  # Web Server Two SSH Security Group
+  # Layer Type: Security Layer 
+  # Description:
+  ##################
+
+  WebServerTwoSSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow Internet users to access SSH (Port 22)
+      VpcId: 
+        Ref: ProductionVPC   
+      Tags:
+        - Key: Name
+          Value: "Web Server Two SSH Security Group"
+
+
+  WebServerTwoSecurityGroupIngressSSHRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: 
+        Ref: WebServerTwoSSHSecurityGroup
+      IpProtocol: tcp
       FromPort: 22
       ToPort: 22
+      SourceSecurityGroupId:
+        Ref: BastionHostTwoSecurityGroup
+
+
+  ##################
+  # Application Load Balancer Security Group
+  # Layer Type: Security Layer 
+  # Description:
+  ##################
+
+  ProductionVPCALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for ALB allowing internet user to access port 80
+      VpcId: 
+        Ref: ProductionVPC
+      Tags:
+        - Key: Name
+          Value: "Production VPC ALB Security Group"
+
+  ProductionVPCALBSecurityGroupIngressHTTPRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: 
+        Ref: ProductionVPCALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
       CidrIp: 0.0.0.0/0
-  
+
+
+  ProductionVPCALBSecurityGroupIngressHTTPSRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: 
+        Ref: ProductionVPCALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: 0.0.0.0/0
+
+
 
 ############################################################################
 ## KEY PAIR (SECURITY LAYER)
 ############################################################################
+  
+  BastionHostOneKeyPair:
+    Type: 'AWS::EC2::KeyPair'
+    Properties:
+      KeyName: BastionHostOneKeyPair
+
+  BastionHostTwoKeyPair:
+    Type: 'AWS::EC2::KeyPair'
+    Properties:
+      KeyName: BastionHostTwoKeyPair
+
 
   WebServerOneKeyPair:
     Type: 'AWS::EC2::KeyPair'
@@ -480,10 +938,115 @@ Resources:
       KeyName: WebServerTwoKeyPair
 
 
-
 ############################################################################
 # COMPUTE LAYER 
 ############################################################################
+
+  ##################
+  # Bastion Host 1
+  # Layer Type: Compute Layer 
+  # Description: To authenticate any user accessing from the internet via SSH by multi-factor authentication 
+  ##################
+  BastionHostOne:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          default:
+            - update_yum_and_install_aws_cfn_bootstrap
+            - install_packages
+        update_yum_and_install_aws_cfn_bootstrap:
+          commands:
+            01_update_yum:
+              command: "yum update -y"
+            02_install_aws_cfn_bootstrap:
+              command: "yum install -y aws-cfn-bootstrap"
+
+
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref LatestAL2023AmiId
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 10
+            VolumeType: gp3
+            DeleteOnTermination: true
+            Encrypted: true
+      Monitoring: true
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          GroupSet: 
+            - !Ref BastionHostOneSecurityGroup
+          SubnetId: !Ref SSHSanitizeAreaSubnetOne
+      KeyName: !Ref BastionHostOneKeyPair
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash -xe
+
+              /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource WebServerTwo --region ${AWS::Region}
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource WebServerTwo --region ${AWS::Region}
+      Tags:
+        - Key: Name
+          Value: Bastion Host One
+
+
+
+  ##################
+  # Bastion Host 2
+  # Layer Type: Compute Layer 
+  # Description: To authenticate any user accessing from the internet via SSH by multi-factor authentication 
+  ##################
+
+  BastionHostTwo:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          default:
+            - update_yum_and_install_aws_cfn_bootstrap
+        update_yum_and_install_aws_cfn_bootstrap:
+          commands:
+            01_update_yum:
+              command: "yum update -y"
+            02_install_aws_cfn_bootstrap:
+              command: "yum install -y aws-cfn-bootstrap"
+
+
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref LatestAL2023AmiId
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 10
+            VolumeType: gp3
+            DeleteOnTermination: true
+            Encrypted: true
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          GroupSet: 
+            - !Ref BastionHostTwoSecurityGroup
+          SubnetId: !Ref SSHSanitizeAreaSubnetTwo
+      Monitoring: true
+      KeyName: !Ref BastionHostTwoKeyPair
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash -xe
+
+
+              /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource BastionHostTwo --region ${AWS::Region}
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource BastionHostTwo --region ${AWS::Region}
+      Tags:
+        - Key: Name
+          Value: Bastion Host Two
+
+
+
 
   ##################
   # Web Server One EC2
@@ -491,14 +1054,24 @@ Resources:
   # Description:
   ##################
 
+
+
   WebServerOne:
     Type: AWS::EC2::Instance
     Metadata:
       AWS::CloudFormation::Init:
         configSets:
           default:
+            - update_yum_and_install_aws_cfn_bootstrap
             - install_httpd_and_configure
             - install_telnet
+            
+        update_yum_and_install_aws_cfn_bootstrap:
+          commands:
+            01_update_yum:
+              command: "dnf update -y"
+            02_install_aws_cfn_bootstrap:
+              command: "yum install -y aws-cfn-bootstrap"
         install_httpd_and_configure:
           packages:
             yum:
@@ -528,48 +1101,37 @@ Resources:
               telnet:
                 enabled: "true"
                 ensureRunning: "true"
+
+
     Properties:
-      InstanceType: !Ref InstanceType
-      ImageId: !Ref LatestAL2023AmiId
-      KeyName: !Ref WebServerOneKeyPair
-      NetworkInterfaces: 
-        - AssociatePublicIpAddress: "true"
-          DeviceIndex: "0"
-          GroupSet: 
-            - !Ref WebServerOneSecurityGroup
-          SubnetId: !Ref ProductionVPCSubnetOne
+      InstanceType:
+        Ref: InstanceType
+      ImageId: 
+        Ref: LatestAL2023AmiId
+      KeyName: 
+        Ref: WebServerOneKeyPair
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 10
+            VolumeType: gp3
+            DeleteOnTermination: true
+            Encrypted: true
+      SecurityGroupIds:
+        - !Ref WebServerOneSecurityGroup
+        - !Ref WebServerOneSSHSecurityGroup
+      Monitoring: true
+      SubnetId: !Ref PrivateWebServerSubnetOne
       UserData:
         Fn::Base64:
           !Sub |
             #!/bin/bash -xe
-              yum update -y aws-cfn-bootstrap
+
               /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource WebServerOne --region ${AWS::Region}
               /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource WebServerOne --region ${AWS::Region}
       Tags:
         - Key: Name
           Value: Web Server One
-
-
-  WebServerOneStorageVolume:
-    Type: AWS::EC2::Volume
-    Properties:
-      Size: 10
-      AvailabilityZone: !GetAtt WebServerOne.AvailabilityZone
-      Encrypted: true
-      VolumeType: gp3
-      MultiAttachEnabled: false
-      Tags:
-        - Key: Name
-          Value: Web Server One Storage Volume
-
-
-  WebServerOneStorageVolumeAttachment:
-    Type: AWS::EC2::VolumeAttachment
-    Properties:
-      InstanceId: !Ref WebServerOne
-      VolumeId: !Ref WebServerOneStorageVolume
-      Device: /dev/sdf
-
 
 
   ##################
@@ -584,8 +1146,16 @@ Resources:
       AWS::CloudFormation::Init:
         configSets:
           default:
+            - update_yum_and_install_aws_cfn_bootstrap
             - install_httpd_and_configure
             - install_telnet
+
+        update_yum_and_install_aws_cfn_bootstrap:
+          commands:
+            01_update_yum:
+              command: "yum update -y"
+            02_install_aws_cfn_bootstrap:
+              command: "yum install -y aws-cfn-bootstrap"
         install_httpd_and_configure:
           packages:
             yum:
@@ -615,46 +1185,35 @@ Resources:
               telnet:
                 enabled: "true"
                 ensureRunning: "true"
+
+        
+
     Properties:
       InstanceType: !Ref InstanceType
       ImageId: !Ref LatestAL2023AmiId
-      NetworkInterfaces: 
-        - AssociatePublicIpAddress: "true"
-          DeviceIndex: "0"
-          GroupSet: 
-            - !Ref WebServerTwoSecurityGroup
-          SubnetId: !Ref ProductionVPCSubnetOne
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 10
+            VolumeType: gp3
+            DeleteOnTermination: true
+            Encrypted: true
+      SecurityGroupIds:
+        - !Ref WebServerTwoSecurityGroup
+        - !Ref WebServerTwoSSHSecurityGroup
+      SubnetId: !Ref PrivateWebServerSubnetTwo
       KeyName: !Ref WebServerTwoKeyPair
+      Monitoring: true
       UserData:
         Fn::Base64:
           !Sub |
             #!/bin/bash -xe
-              yum update -y aws-cfn-bootstrap
+
               /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource WebServerTwo --region ${AWS::Region}
               /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource WebServerTwo --region ${AWS::Region}
       Tags:
         - Key: Name
           Value: Web Server Two
-
-
- WebServerTwoStorageVolume:
-    Type: AWS::EC2::Volume
-    Properties:
-      Size: 10
-      AvailabilityZone: !GetAtt WebServerTwo.AvailabilityZone
-      Encrypted: true
-      VolumeType: gp3
-      MultiAttachEnabled: false
-      Tags:
-        - Key: Name
-          Value: Web Server Two Storage Volume
-
-  WebServerTwoStorageVolumeAttachment:
-    Type: AWS::EC2::VolumeAttachment
-    Properties:
-      InstanceId: !Ref WebServerTwo
-      VolumeId: !Ref WebServerTwoStorageVolume
-      Device: /dev/sdv
 
 
 
@@ -664,67 +1223,36 @@ Resources:
 ############################################################################
 Outputs:
 
-  WebServerOnePublicIP:
-    Value: !GetAtt WebServerOne.PublicIp
-    Export:
-      Name: "Web-Server-One-Public-IP"
-
-  WebServerOnePublicDnsName:
-    Value: !GetAtt WebServerOne.PublicDnsName
-    Export:
-      Name: "Web-Server-One-Public-DNS-Name"
-
-
   WebServerOneInstanceId:
     Value: !GetAtt WebServerOne.InstanceId
     Export:
       Name: "Web-Server-One-EC2-Instance-ID"
-
-  
 
   WebServerOnePrivateIP:
     Value: !GetAtt WebServerOne.PrivateIp
     Export:
       Name: "Web-Server-One-Private-IP"
 
-  
   WebServerOnePrivateDNSName:
     Value: !GetAtt WebServerOne.PrivateDnsName
     Export:
       Name: "Web-Server-One-Private-DNS-Name"
-
 
   WebServerOneKeyPairId:
     Value: !GetAtt WebServerOneKeyPair.KeyPairId
     Export:
       Name: "Web-Server-One-Key-Pair-ID"
 
-  
-
-  WebServerTwoPublicIP:
-    Value: !GetAtt WebServerTwo.PublicIp
-    Export:
-      Name: "Web-Server-Two-Public-IP"
-
-  WebServerTwoPublicDnsName:
-    Value: !GetAtt WebServerTwo.PublicDnsName
-    Export:
-      Name: "Web-Server-Two-Public-DNS-Name"
-
-
   WebServerTwoInstanceId:
     Value: !GetAtt WebServerTwo.InstanceId
     Export:
       Name: "Web-Server-Two-EC2-Instance-ID"
-
-  
 
   WebServerTwoPrivateIP:
     Value: !GetAtt WebServerTwo.PrivateIp
     Export:
       Name: "Web-Server-Two-Private-IP"
 
-  
   WebServerTwoPrivateDNSName:
     Value: !GetAtt WebServerTwo.PrivateDnsName
     Export:
@@ -735,108 +1263,129 @@ Outputs:
     Export:
       Name: "Web-Server-Two-Key-Pair-ID"
 
-  SubnetOneACLID:
-    Value: !GetAtt SubnetOneACL.Id
+  BastionHostOneKeyPairId:
+    Value: !GetAtt BastionHostOneKeyPair.KeyPairId
     Export:
-      Name: "Subnet-One-ACL-ID"
+      Name: "Bastion-Host-One-Key-Pair-ID"
 
-  SubnetTwoACLID:
-    Value: !GetAtt SubnetTwoACL.Id
+  BastionHostTwoKeyPairId:
+    Value: !GetAtt BastionHostTwoKeyPair.KeyPairId
     Export:
-      Name: "Subnet-Two-ACL-ID"
+      Name: "Bastion-Host-Two-Key-Pair-ID"
 
-  ProductionVPCSubnetOneAZ:
-      Value: !GetAtt ProductionVPCSubnetOne.AvailabilityZone
-      Export:
-        Name: "Production-VPC-Subnet-One-Availability-Zone"
+  
 
-  ProductionVPCSubnetOneCidrBlock:
-    Value: !GetAtt ProductionVPCSubnetOne.CidrBlock
+  # SubnetOneACLID:
+  #   Value: !GetAtt SubnetOneACL.Id
+  #   Export:
+  #     Name: "Subnet-One-ACL-ID"
+
+  # SubnetTwoACLID:
+  #   Value: !GetAtt SubnetTwoACL.Id
+  #   Export:
+  #     Name: "Subnet-Two-ACL-ID"
+
+  # ProductionVPCSubnetOneAZ:
+  #   Value: !GetAtt ProductionVPCSubnetOne.AvailabilityZone
+  #   Export:
+  #     Name: "Production-VPC-Subnet-One-Availability-Zone"
+
+  # ProductionVPCSubnetOneCidrBlock:
+  #   Value: !GetAtt ProductionVPCSubnetOne.CidrBlock
+  #   Export:
+  #     Name: "Production-VPC-Subnet-One-Network-Address"
+
+
+  # ProductionVPCSubnetOneID:
+  #   Value:  !GetAtt ProductionVPCSubnetOne.SubnetId
+  #   Export:
+  #     Name: "Production-VPC-Subnet-One-ID"
+
+  # ProductionVPCSubnetOneNetworkAclAssociationId:
+  #   Value: !GetAtt ProductionVPCSubnetOne.NetworkAclAssociationId
+  #   Export:
+  #     Name: "Production-VPC-Subnet-One-Network-ACL-Association-ID"
+
+
+  # ProductionVPCSubnetTwoAZ:
+  #   Value: !GetAtt ProductionVPCSubnetTwo.AvailabilityZone
+  #   Export:
+  #     Name: "Production-VPC-Subnet-Two-Availability-Zone"
+
+  # ProductionVPCSubnetTwoCidrBlock:
+  #   Value: !GetAtt ProductionVPCSubnetTwo.CidrBlock
+  #   Export:
+  #     Name: "Production-VPC-Subnet-Two-Network-Address"
+
+  # ProductionVPCSubnetTwoID:
+  #   Value:  !GetAtt ProductionVPCSubnetTwo.SubnetId
+  #   Export:
+  #     Name: "Production-VPC-Subnet-Two-ID"
+
+  # ProductionVPCSubnetTwoNetworkAclAssociationId:
+  #   Value: !GetAtt ProductionVPCSubnetTwo.NetworkAclAssociationId
+  #   Export:
+  #     Name: "Production-VPC-Subnet-Two-Network-ACL-Association-ID"
+
+
+
+  # ProductionVPCBackupPublicSubnetAZ:
+  #   Value: !GetAtt ProductionVPCBackupPublicSubnet.AvailabilityZone
+  #   Export:
+  #     Name: "Production-VPC-Backup-Public-Subnet-Availability-Zone"
+
+  # ProductionVPCBackupPublicSubnetCidrBlock:
+  #   Value: !GetAtt ProductionVPCBackupPublicSubnet.CidrBlock
+  #   Export:
+  #     Name: "Production-VPC-Backup-Public-Subnet-Two-Network-Address"
+
+  # ProductionVPCBackupPublicSubnetID:
+  #   Value: !GetAtt ProductionVPCBackupPublicSubnet.SubnetId
+  #   Export:
+  #     Name: "Production-VPC-Backup-Public-Subnet-ID"
+
+  # ProductionVPCBackupPublicSubnetNetworkAclAssociationId:
+  #   Value: !GetAtt ProductionVPCBackupPublicSubnet.NetworkAclAssociationId
+  #   Export:
+  #     Name: "Production-VPC-Backup-Public-Subnet-Network-ACL-Association-ID"
+
+
+  # ProductionVPCBackupPrivateSubnetAZ:
+  #   Value: !GetAtt ProductionVPCBackupPrivateSubnet.AvailabilityZone
+  #   Export:
+  #     Name: "Production-VPC-Backup-Private-Subnet-Availability-Zone"
+
+  # ProductionVPCBackupPrivateSubnetCidrBlock:
+  #   Value: !GetAtt ProductionVPCBackupPrivateSubnet.CidrBlock
+  #   Export:
+  #     Name: "Production-VPC-Backup-Private-Subnet-Two-Network-Address"
+
+  # ProductionVPCBackupPrivateSubnetID:
+  #   Value: !GetAtt ProductionVPCBackupPrivateSubnet.SubnetId
+  #   Export:
+  #     Name: "Production-VPC-Backup-Private-Subnet-ID"
+
+  # ProductionVPCBackupPrivateSubnetNetworkAclAssociationId:
+  #   Value: !GetAtt ProductionVPCBackupPrivateSubnet.NetworkAclAssociationId
+  #   Export:
+  #     Name: "Production-VPC-Backup-Private-Subnet-Network-ACL-Association-ID"
+
+
+  ApplicationLoadBalancerDNS:
+    Value: !GetAtt ApplicationLoadBalancer.DNSName
     Export:
-      Name: "Production-VPC-Subnet-One-Network-Address"
-
-
-  ProductionVPCSubnetOneID:
-    Value:  !GetAtt ProductionVPCSubnetOne.SubnetId
+      Name: "Application-Load-Balancer-DNS-Name"
+  
+  ApplicationLoadBalancerARN:
+    Value: !GetAtt ApplicationLoadBalancer.LoadBalancerArn
     Export:
-      Name: "Production-VPC-Subnet-One-ID"
+      Name: "Application-Load-Balancer-ARN"
 
-  ProductionVPCSubnetOneNetworkAclAssociationId:
-    Value: !GetAtt ProductionVPCSubnetOne.NetworkAclAssociationId
+
+  InternetGatewayId:
+    Value: !GetAtt ProductionVPCInternetGateway.InternetGatewayId
     Export:
-      Name: "Production-VPC-Subnet-One-Network-ACL-Association-ID"
-
-
-
-
-
-
-
-  ProductionVPCSubnetTwoAZ:
-    Value: !GetAtt ProductionVPCSubnetTwo.AvailabilityZone
-    Export:
-      Name: "Production-VPC-Subnet-Two-Availability-Zone"
-
-  ProductionVPCSubnetTwoCidrBlock:
-    Value: !GetAtt ProductionVPCSubnetTwo.CidrBlock
-    Export:
-      Name: "Production-VPC-Subnet-Two-Network-Address"
-
-  ProductionVPCSubnetTwoID:
-    Value:  !GetAtt ProductionVPCSubnetTwo.SubnetId
-    Export:
-      Name: "Production-VPC-Subnet-Two-ID"
-
-  ProductionVPCSubnetTwoNetworkAclAssociationId:
-    Value: !GetAtt ProductionVPCSubnetTwo.NetworkAclAssociationId
-    Export:
-      Name: "Production-VPC-Subnet-Two-Network-ACL-Association-ID"
-
-
-
-  ProductionVPCBackupPublicSubnetAZ:
-    Value: !GetAtt ProductionVPCBackupPublicSubnet.AvailabilityZone
-    Export:
-      Name: "Production-VPC-Backup-Public-Subnet-Availability-Zone"
-
-  ProductionVPCBackupPublicSubnetCidrBlock:
-    Value: !GetAtt ProductionVPCBackupPublicSubnet.CidrBlock
-    Export:
-      Name: "Production-VPC-Backup-Public-Subnet-Two-Network-Address"
-
-  ProductionVPCBackupPublicSubnetID:
-    Value: !GetAtt ProductionVPCBackupPublicSubnet.SubnetId
-    Export:
-      Name: "Production-VPC-Backup-Public-Subnet-ID"
-
-  ProductionVPCBackupPublicSubnetNetworkAclAssociationId:
-    Value: !GetAtt ProductionVPCBackupPublicSubnet.NetworkAclAssociationId
-    Export:
-      Name: "Production-VPC-Backup-Public-Subnet-Network-ACL-Association-ID"
-
-
-  ProductionVPCBackupPrivateSubnetAZ:
-    Value: !GetAtt ProductionVPCBackupPrivateSubnet.AvailabilityZone
-    Export:
-      Name: "Production-VPC-Backup-Private-Subnet-Availability-Zone"
-
-  ProductionVPCBackupPrivateSubnetCidrBlock:
-    Value: !GetAtt ProductionVPCBackupPrivateSubnet.CidrBlock
-    Export:
-      Name: "Production-VPC-Backup-Private-Subnet-Two-Network-Address"
-
-  ProductionVPCBackupPrivateSubnetID:
-    Value: !GetAtt ProductionVPCBackupPrivateSubnet.SubnetId
-    Export:
-      Name: "Production-VPC-Backup-Private-Subnet-ID"
-
-  ProductionVPCBackupPrivateSubnetNetworkAclAssociationId:
-    Value: !GetAtt ProductionVPCBackupPrivateSubnet.NetworkAclAssociationId
-    Export:
-      Name: "Production-VPC-Backup-Private-Subnet-Network-ACL-Association-ID"
-
-
-
+      Name: "ProductionVPCInternetGateway-ID"
 
   ProductionVPCID:
     Value: !GetAtt ProductionVPC.VpcId
@@ -855,5 +1404,3 @@ Outputs:
       - !GetAtt ProductionVPC.CidrBlockAssociations
     Export:
       Name: "Production-VPC-CIDR-Block-Associations"
-
-
