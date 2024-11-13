@@ -124,7 +124,7 @@ Resources:
   RDSInstanceSecrets:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Description: Secrets for PostgreSQL RDS instance made from cloudformation template
+      Description: Secrets for MySQL RDS instance made from cloudformation template
       Name: !Join ['-', [!Ref 'AWS::StackName', secret]]
       GenerateSecretString:
         SecretStringTemplate: '{"username": "dbdeveloper"}'
