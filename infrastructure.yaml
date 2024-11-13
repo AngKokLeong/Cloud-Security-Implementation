@@ -233,48 +233,6 @@ Resources:
 
 
 ############################################################################
-##  BACKUP PUBLIC SUBNET ROUTING TABLE CONFIGURATION
-############################################################################
-
-  BackupPublicSubnetRoutingTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref ProductionVPC
-      Tags:
-        - Key: Name
-          Value: "Backup Public Subnet Routing Table"
-
-  BackupSubnetRoutingTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: 
-        Ref: BackupPublicSubnetRoutingTable
-      SubnetId: 
-        Ref: ProductionVPCBackupPublicSubnet
-
-############################################################################
-##  BACKUP PRIVATE SUBNET ROUTING TABLE CONFIGURATION
-############################################################################
-
-  BackupPrivateSubnetRoutingTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref ProductionVPC
-      Tags:
-        - Key: Name
-          Value: "Backup Private Subnet Routing Table"
-
-  BackupPrivateSubnetRoutingTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: 
-        Ref: BackupPrivateSubnetRoutingTable
-      SubnetId: 
-        Ref: ProductionVPCBackupPrivateSubnet
-
-
-
-############################################################################
 ##  SUBNET ONE ACCESS CONTROL LIST CONFIGURATION
 ############################################################################
 
